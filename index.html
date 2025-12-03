@@ -12,23 +12,49 @@
 
 <script>
 <script>
-  const URL = "https://temp-stat2.onrender.com/data";  // ← твоя адреса бекенду
+  const URL = "https://temp-stat2.onrender.com/data";  // твоя адреса
 
-  async function update() {
-    const res = await fetch(URL);
-    const data = await res.json();
-    const x = data.map(d => d.ts);
-    Plotly.react('chart', [
-      {x, y: data.map(d=>d.temp), name:'Температура °C', line:{color:'#f44'}},
-      {x, y: data.map(d=>d.hum),  name:'Вологість %',     yaxis:'y2', line:{color:'#44f'}}
-    ], {
-      title: 'Вся історія вимірювань',
-      yaxis: {title: '°C'}, yaxis2: {title: '%', overlaying:'y', side:'right'},
-      paper_bgcolor: '#000', plot_bgcolor: '#111', font:{color:'#0f0'}
-    });
-  }
-  update();
-  setInterval(update, 15000);
+  let tempData = [];
+  let humData = [];
+  let timeData = [];
+
+  Plotly.newPlot('chart', [
+    { x: [], y: [], name: 'Температура °C', line: {color: '#f44'} },
+    { x: [], y: [], name: 'Вологість %', yaxis: 'y2', line: {color: '#44f'} }
+  ], {
+    title: 'Temp_stat — живі дані',
+    yaxis: {title: '°C'}, yaxis2: {title: '%', overlaying: 'y', side: 'right'},
+    paper_bgcolor: '#000', plot_bgcolor: '#111', font: {color: '#0f0'}
+  });
+
+  setInterval(async () => {
+    try {
+      const res = await fetch(URL + "?t=" + Date.now());  // обход кешу
+      const d = await res.json();
+
+      const now = new Date().toLocaleTimeString();
+
+      tempData.push(d.temp);
+      humData.push(d.hum);
+      timeData.push(now);
+
+      // обмежуємо 100 точок
+      if (tempData.length > 100) {
+        tempData.shift(); humData.shift(); timeData.shift();
+      }
+
+      Plotly.react('chart', [
+        { x: timeData, y: tempData, name: 'Температура °C' },
+        { x: timeData, y: humData, name: 'Вологість %', yaxis: 'y2' }
+      ], {
+        title: `Останнє: ${d.temp}°C | ${d.hum}% | ${now}`,
+        yaxis: {title: true}, yaxis2: {overlaying: 'y', side: 'right'}
+      });
+
+    } catch (e) {
+      console.log("Помилка:", e);
+    }
+  }, 8000);
 </script>
 </body>
 </html>
