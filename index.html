@@ -1,65 +1,28 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Temp_stat – температура</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-</head>
-<body style="background:#000; color:#0f0; margin:0; font-family:Arial;">
+<html><head><meta charset="utf-8"><title>Temp_stat</title>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<style>body{background:#000;color:#0f0;font-family:Arial;text-align:center;margin:0;}</style>
+</head><body>
+<h1>Температура та вологість з ESP32</h1>
+<div id="chart" style="width:95%;height:80vh;margin:auto;"></div>
+<h2 id="last">чекаємо дані...</h2>
 
-  <h1 style="text-align:center; margin:20px;">Температура з ESP32</h1>
-  <div id="chart" style="width:98%; height:85vh; margin:auto;"></div>
-  <h2 style="text-align:center;" id="last">чекаємо дані...</h2>
+<script>
+const URL = "https://temp-stat2.onrender.com/data";  // ← твоя адреса
 
-  <script>
-    const URL = "https://temp-stat2.onrender.com/data";
+Plotly.newPlot('chart', [{
+  y: [], name: 'Температура °C', line: {color: 'red'}
+}, {
+  y: [], name: 'Вологість %', yaxis: 'y2', line: {color: 'cyan'}
+}], {paper_bgcolor:'#000',plot_bgcolor:'#000',font:{color:'#0f0'}});
 
-    // Створюємо порожній графік
-    Plotly.newPlot('chart', [{
-      x: [],
-      y: [],
-      type: 'scatter',
-      mode: 'lines+markers',
-      name: 'Температура °C',
-      line: {color: 'red', width: 3},
-      marker: {size: 8}
-    }], {
-      title: 'Живі дані температури',
-      paper_bgcolor: '#000',
-      plot_bgcolor: '#000',
-      font: {color: '#0f0'},
-      xaxis: {color: '#0f0', gridcolor: '#222'},
-      yaxis: {color: 'red', gridcolor: '#222', title: '°C'}
-    });
-
-    // Оновлюємо кожні 7 секунд
-    setInterval(async () => {
-      try {
-        const res = await fetch(URL + "?t=" + Date.now());
-        const data = await res.json();
-
-        const time = new Date().toLocaleTimeString();
-
-        // Додаємо нову точку
-        Plotly.extendTraces('chart', {
-          x: [[time]],
-          y: [[data.temp]]
-        }, [0]);
-
-        // Показуємо останнє значення під графіком
-        document.getElementById("last").innerHTML = 
-          `Останнє: <span style="color:red;font-size:50px;">${data.temp}°C</span> о ${time}`;
-
-        // Обмежуємо 100 точок
-        Plotly.relayout('chart', {
-          'xaxis.autorange': true
-        });
-
-      } catch (e) {
-        document.getElementById("last").innerHTML = "немає зв’язку з сервером";
-      }
-    }, 7000);
-  </script>
-
-</body>
-</html>
+setInterval(async () => {
+  try {
+    const d = await fetch(URL).then(r => r.json());
+    const t = new Date().toLocaleTimeString();
+    Plotly.extendTraces('chart', {y:[[d.temp],[d.hum]], x:[[t],[t]]}, [0,1]);
+    document.getElementById("last").innerHTML = `${d.temp}°C | ${d.hum}% | ${t}`;
+  } catch(e) {}
+}, 8000);
+</script>
+</body></html>
