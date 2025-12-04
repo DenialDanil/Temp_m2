@@ -2,59 +2,54 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Temp_stat – вся історія</title>
+  <title>Temp_stat – живі дані</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-  <style>body{background:#000;color:#0f0;font-family:Arial;text-align:center;}</style>
 </head>
-<body>
-  <h1>Temp_stat — дані зберігаються назавжди</h1>
-  <div id="chart" style="width:95%;height:80vh;margin:auto;"></div>
+<body style="background:black; color:lime; font-family:Arial; text-align:center; margin:0;">
 
-<script>
-<script>
-  const URL = "https://temp-stat2.onrender.com/data";  // твоя адреса
+  <h1>Temp_stat — ESP32</h1>
+  <div id="myDiv" style="width:95%; height:80vh; margin:auto;"></div>
+  <h2 id="last"></h2>
 
-  let tempData = [];
-  let humData = [];
-  let timeData = [];
+  <script>
+    const URL = "https://temp-stat2.onrender.com/data";   // ← ТВОЯ ТОЧНА АДРЕСА
 
-  Plotly.newPlot('chart', [
-    { x: [], y: [], name: 'Температура °C', line: {color: '#f44'} },
-    { x: [], y: [], name: 'Вологість %', yaxis: 'y2', line: {color: '#44f'} }
-  ], {
-    title: 'Temp_stat — живі дані',
-    yaxis: {title: '°C'}, yaxis2: {title: '%', overlaying: 'y', side: 'right'},
-    paper_bgcolor: '#000', plot_bgcolor: '#111', font: {color: '#0f0'}
-  });
+    let x = [], temp = [], hum = [];
 
-  setInterval(async () => {
-    try {
-      const res = await fetch(URL + "?t=" + Date.now());  // обход кешу
-      const d = await res.json();
+    Plotly.newPlot('myDiv', [{
+      x: [], y: [], name: 'Температура °C', line: {color: 'red'}
+    }, {
+      x: [], y: [], name: 'Вологість %', yaxis: 'y2', line: {color: 'cyan'}
+    }], {
+      title: 'Живі дані з ESP32',
+      paper_bgcolor: 'black',
+      plot_bgcolor: 'black',
+      font: {color: 'lime'},
+      yaxis: {title: '°C', color: 'red'},
+      yaxis2: {title: '%', overlaying: 'y, side:'right', color:'cyan'}
+    });
 
-      const now = new Date().toLocaleTimeString();
+    setInterval(async () => {
+      try {
+        const r = await fetch(URL + "?t=" + Date.now());
+        const d = await r.json();
 
-      tempData.push(d.temp);
-      humData.push(d.hum);
-      timeData.push(now);
+        const time = new Date().toLocaleTimeString();
 
-      // обмежуємо 100 точок
-      if (tempData.length > 100) {
-        tempData.shift(); humData.shift(); timeData.shift();
-      }
+        x.push(time);
+        temp.push(d.temp);
+        hum.push(d.hum);
 
-      Plotly.react('chart', [
-        { x: timeData, y: tempData, name: 'Температура °C' },
-        { x: timeData, y: humData, name: 'Вологість %', yaxis: 'y2' }
-      ], {
-        title: `Останнє: ${d.temp}°C | ${d.hum}% | ${now}`,
-        yaxis: {title: true}, yaxis2: {overlaying: 'y', side: 'right'}
-      });
+        if (x.length > 100) { x.shift(); temp.shift(); hum.shift(); }
 
-    } catch (e) {
-      console.log("Помилка:", e);
-    }
-  }, 8000);
-</script>
+        Plotly.update('myDiv', {x:[x,x], y:[temp,hum]}, [0,1]);
+
+        document.getElementById("last").innerHTML = 
+          `Останнє: ${d.temp}°C | ${d.hum}% | ${time}`;
+
+      } catch(e) { console.log("error"); }
+    }, 7000);
+  </script>
+
 </body>
 </html>
