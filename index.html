@@ -2,54 +2,31 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Temp_stat – живі дані</title>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <title>Temp_stat</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
-<body style="background:black; color:lime; font-family:Arial; text-align:center; margin:0;">
-
-  <h1>Temp_stat — ESP32</h1>
-  <div id="myDiv" style="width:95%; height:80vh; margin:auto;"></div>
-  <h2 id="last"></h2>
+<body style="background:black; color:white; margin:0; padding:20px;">
+  <h1 style="text-align:center;">Temp_stat — живі дані</h1>
+  <div id="chart" style="width:100%; height:80vh;"></div>
 
   <script>
-    const URL = "https://temp-stat2.onrender.com/data";   // ← ТВОЯ ТОЧНА АДРЕСА
+    const URL = "https://temp-stat2.onrender.com/data";
 
-    let x = [], temp = [], hum = [];
-
-    Plotly.newPlot('myDiv', [{
-      x: [], y: [], name: 'Температура °C', line: {color: 'red'}
+    Plotly.newPlot('chart', [{
+      y: [], type: 'scatter', name: 'Температура °C', line: {color: 'red'}
     }, {
-      x: [], y: [], name: 'Вологість %', yaxis: 'y2', line: {color: 'cyan'}
-    }], {
-      title: 'Живі дані з ESP32',
-      paper_bgcolor: 'black',
-      plot_bgcolor: 'black',
-      font: {color: 'lime'},
-      yaxis: {title: '°C', color: 'red'},
-      yaxis2: {title: '%', overlaying: 'y, side:'right', color:'cyan'}
-    });
+      y: [], type: 'scatter', name: 'Вологість %', yaxis: 'y2', line: {color: 'cyan'}
+    }]);
 
-    setInterval(async () => {
-      try {
-        const r = await fetch(URL + "?t=" + Date.now());
-        const d = await r.json();
-
-        const time = new Date().toLocaleTimeString();
-
-        x.push(time);
-        temp.push(d.temp);
-        hum.push(d.hum);
-
-        if (x.length > 100) { x.shift(); temp.shift(); hum.shift(); }
-
-        Plotly.update('myDiv', {x:[x,x], y:[temp,hum]}, [0,1]);
-
-        document.getElementById("last").innerHTML = 
-          `Останнє: ${d.temp}°C | ${d.hum}% | ${time}`;
-
-      } catch(e) { console.log("error"); }
-    }, 7000);
+    setInterval(() => {
+      fetch(URL + "?t=" + Date.now())
+        .then(r => r.json())
+        .then(d => {
+          const now = new Date().toLocaleTimeString();
+          Plotly.extendTraces('chart', { y: [[d.temp], [d.hum]], x: [[now], [now]] }, [0, 1]);
+        })
+        .catch(() => console.log("чекаємо дані..."));
+    }, 8000);
   </script>
-
 </body>
 </html>
