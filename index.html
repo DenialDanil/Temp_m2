@@ -27,8 +27,8 @@
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
-
     const ctx = document.getElementById('chart').getContext('2d');
+    
     const chart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -37,16 +37,16 @@
           data: [],
           borderColor: '#ff6b6b',
           backgroundColor: 'rgba(255,107,107,0.15)',
-          tension: 0.4,           // плавна лінія
+          tension: 0.4,
           fill: true,
-          stepped: false,         // головне — вимкнули "сходинки"
+          stepped: false,
           pointRadius: 2,
           pointHoverRadius: 6,
           borderWidth: 3
         }]
       },
       options: {
-        animation: { duration: 0 },           // без анімації = миттєве оновлення
+        animation: { duration: 0 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
@@ -56,11 +56,14 @@
           x: {
             type: 'time',
             time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }},
-            ticks: { color: '#666' },
             grid: { display: false }
           },
           y: {
-            ticks: { color: '#666', callback: v => v + '°C' },
+            ticks: {
+              stepSize: 0.5,                    // головне — крок 0.5°C
+              callback: value => value + '°C',  // підпис типу 20.5°C
+              color: '#666'
+            },
             grid: { color: 'rgba(0,0,0,0.05)' }
           }
         }
@@ -72,7 +75,6 @@
         .then(r => r.json())
         .then(data => {
           const points = data.map(d => ({ x: new Date(d.timestamp), y: d.temp }));
-
           chart.data.datasets[0].data = points;
           chart.update('quiet');
 
@@ -82,8 +84,7 @@
             document.title = last.toFixed(1) + "°C – Temp-m2";
           }
         })
-        .catch(err => {
-          console.error(err);
+        .catch(() => {
           document.getElementById('current-temp').textContent = "немає зв’язку";
         });
     }
