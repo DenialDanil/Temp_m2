@@ -4,59 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Температура – Temp-m2</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
   <style>
-    body { margin:0; font-family: system-ui, sans-serif; background:#f0f2f5; color:#333; }
-    header { background:#2c3e50; color:white; padding:30px; text-align:center; }
-    h1 { margin:0; font-size:2.2em; }
-    .container { max-width:1000px; margin:20px auto; padding:0 20px; }
-    .current {
-      text-align:center; font-size:6em; font-weight:bold; margin:30px 0;
-      color:#e74c3c; text-shadow:0 4px 10px rgba(0,0,0,0.1);
-    }
-    .chart-container {
-      position:relative; height:400px; background:white; border-radius:15px;
-      box-shadow:0 8px 25px rgba(0,0,0,0.1); padding:20px; margin-bottom:30px;
-    }
-    footer { text-align:center; padding:20px; color:#777; font-size:0.9em; }
+    body {margin:0; font-family:system-ui,sans-serif; background:linear-gradient(135deg,#667eea,#764ba2); color:white; min-height:100vh;}
+    header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
+    h1 {margin:0; font-size:2.5em;}
+    .container {max-width:1100px; margin:0 auto; padding:20px;}
+    .current {text-align:center; font-size:4.5em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
+    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+    footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
   </style>
 </head>
 <body>
-  <header><h1>Моніторинг температури</h1></header>
-  
+  <header><h1>Температура в реальному часі</h1></header>
   <div class="container">
     <div class="current" id="current-temp">--°C</div>
-
-    <div class="chart-container">
-      <canvas id="tempChart"></canvas>
-    </div>
+    <canvas id="chart"></canvas>
   </div>
-
-  <footer>Temp-m2 • дані з Temp-stat2 • оновлення кожні 20 секунд</footer>
+  <footer>Temp-m2 ← дані з Temp-stat2 • оновлення кожні 20 сек</footer>
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
 
-    const tempChart = new Chart(document.getElementById('tempChart'), {
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
       type: 'line',
       data: {
         datasets: [{
           label: 'Температура °C',
           data: [],
-          borderColor: '#e74c3c',
-          backgroundColor: 'rgba(231, 76, 60, 0.1)',
-          tension: 0.3,           // твоя улюблена плавність
-          pointRadius: 4,         // як у тебе було
-          pointHoverRadius: 8,
+          borderColor: '#ff6b6b',
+          backgroundColor: 'rgba(255,107,107,0.15)',
+          tension: 0.4,           // плавна лінія
           fill: true,
-          stepped: false          // головне — без сходинок!
+          stepped: false,         // головне — вимкнули "сходинки"
+          pointRadius: 2,
+          pointHoverRadius: 6,
+          borderWidth: 3
         }]
       },
       options: {
-        maintainAspectRatio: false,
-        animation: false,
+        animation: { duration: 0 },           // без анімації = миттєве оновлення
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(1)}°C` }}
@@ -64,14 +55,13 @@
         scales: {
           x: {
             type: 'time',
-            time: {
-              unit: 'minute',
-              displayFormats: { minute: 'HH:mm' }
-            },
+            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }},
+            ticks: { color: '#666' },
             grid: { display: false }
           },
           y: {
-            ticks: { callback: v => v + '°C' }
+            ticks: { color: '#666', callback: v => v + '°C' },
+            grid: { color: 'rgba(0,0,0,0.05)' }
           }
         }
       }
@@ -81,22 +71,20 @@
       fetch(API)
         .then(r => r.json())
         .then(data => {
-          const points = data.map(d => ({
-            x: new Date(d.timestamp),
-            y: d.temp
-          }));
+          const points = data.map(d => ({ x: new Date(d.timestamp), y: d.temp }));
 
-          tempChart.data.datasets[0].data = points;
-          tempChart.update('quiet');
+          chart.data.datasets[0].data = points;
+          chart.update('quiet');
 
           if (data.length > 0) {
-            const lastTemp = data[data.length - 1].temp;
-            document.getElementById('current-temp').textContent = lastTemp.toFixed(1) + '°C';
-            document.title = lastTemp.toFixed(1) + '°C – Temp-m2';
+            const last = data[data.length - 1].temp;
+            document.getElementById('current-temp').textContent = last.toFixed(1) + "°C";
+            document.title = last.toFixed(1) + "°C – Temp-m2";
           }
         })
-        .catch(() => {
-          document.getElementById('current-temp').textContent = '×';
+        .catch(err => {
+          console.error(err);
+          document.getElementById('current-temp').textContent = "немає зв’язку";
         });
     }
 
