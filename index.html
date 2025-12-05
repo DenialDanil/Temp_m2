@@ -13,7 +13,7 @@
     header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
     h1 {margin:0; font-size:2.5em;}
     .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:5em; margin:40px 0; text-shadow:0 4px 15px rgba(0,0,0,0.5);}
+    .current {text-align:center; font-size:4.5em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
     canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
     footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
   </style>
@@ -24,12 +24,11 @@
     <div class="current" id="current-temp">--°C</div>
     <canvas id="chart"></canvas>
   </div>
-  <footer>Temp-m2 ← дані з Temp-stat2 • оновлення кожні 20 сек • гортай графік повзунком</footer>
+  <footer>Temp-m2 ← дані з Temp-stat2 • оновлення кожні 20 сек • гортай повзунком</footer>
 
   <script>
-    const API = "https://temp-stat2.onrender.com/api/data?limit=5000"; // більший ліміт для гортання
+    const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
     const ctx = document.getElementById('chart').getContext('2d');
-
     const chart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -41,7 +40,7 @@
           tension: 0.4,
           fill: true,
           stepped: false,
-          pointRadius: 1,
+          pointRadius: 2,
           pointHoverRadius: 6,
           borderWidth: 3
         }]
@@ -54,13 +53,13 @@
           tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(1)}°C` }},
           zoom: {
             zoom: {
-              wheel: { enabled: true },      // зум коліщатком миші
-              pinch: { enabled: true },      // зум на тачі
-              mode: 'x'                      // тільки по часу (X)
+              wheel: { enabled: false },    // видалили зум коліщатком
+              pinch: { enabled: true },
+              mode: 'x'
             },
             pan: {
-              enabled: true,                 // гортання повзунком (drag)
-              mode: 'x'                      // тільки горизонтально
+              enabled: true,                // тільки гортання повзунком
+              mode: 'x'
             }
           }
         },
@@ -72,29 +71,23 @@
             grid: { display: false }
           },
           y: {
-            ticks: {
-              stepSize: 0.5,
-              callback: v => v + '°C',
-              color: '#666'
-            },
+            ticks: { color: '#666', callback: v => v + '°C' },
             grid: { color: 'rgba(0,0,0,0.05)' }
           }
         }
       }
     });
-
     function update() {
       fetch(API)
         .then(r => r.json())
         .then(data => {
           const points = data.map(d => ({ x: new Date(d.timestamp), y: d.temp }));
-
           chart.data.datasets[0].data = points;
 
-          // Стандартний інтервал: останні 1 година
+          // Фокус на останніх 1 годині (3600 секунд)
           if (points.length > 0) {
             const lastTime = points[points.length - 1].x;
-            chart.options.scales.x.min = new Date(lastTime - 1 * 60 * 60 * 1000); // 1 година
+            chart.options.scales.x.min = new Date(lastTime - 1 * 60 * 60 * 1000);  // 1 година
             chart.options.scales.x.max = lastTime;
           }
 
@@ -110,7 +103,6 @@
           document.getElementById('current-temp').textContent = "немає зв’язку";
         });
     }
-
     update();
     setInterval(update, 20000);
   </script>
