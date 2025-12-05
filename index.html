@@ -13,101 +13,119 @@
     header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
     h1 {margin:0; font-size:2.5em;}
     .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:4.5em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
+    .current {text-align:center; font-size:4.8em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
+    .controls {text-align:center; margin:20px 0;}
+    select {
+      padding:12px 20px; font-size:1.1em; border-radius:12px; border:none;
+      background:#ffffff; color:#333; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.3);
+    }
+    select:focus {outline:none; box-shadow:0 0 0 4px rgba(255,107,107,0.4);}
     canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
     footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
   </style>
 </head>
 <body>
   <header><h1>Температура в реальному часі</h1></header>
+  
   <div class="container">
     <div class="current" id="current-temp">--°C</div>
+
+    <div class="controls">
+      <select id="timeRange">
+        <option value="1200">20 хвилин</option>
+        <option value="3600" selected>1 година</option>
+        <option value="10800">3 години</option>
+        <option value="18000">5 годин</option>
+        <option value="43200">12 годин</option>
+        <option value="86400">24 години</option>
+      </select>
+    </div>
+
     <canvas id="chart"></canvas>
   </div>
-  <footer>Temp-m2 ← дані з Temp-stat2 • оновлення кожні 20 сек • гортай повзунком</footer>
+
+  <footer>Temp-m2 • вибір масштабу • гортай повзунком • час по Києву</footer>
 
   <script>
-    const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
+    const API = "https://temp-stat2.onrender.com/api/data?limit=5000";
     const ctx = document.getElementById('chart').getContext('2d');
+    const select = document.getElementById('timeRange');
+
     const chart = new Chart(ctx, {
       type: 'line',
-      data: {
-        datasets: [{
-          label: 'Температура °C',
-          data: [],
-          borderColor: '#ff6b6b',
-          backgroundColor: 'rgba(255,107,107,0.15)',
-          tension: 0.4,
-          fill: true,
-          stepped: false,
-          pointRadius: 2,
-          pointHoverRadius: 6,
-          borderWidth: 3
-        }]
-      },
+      data: { datasets: [{
+        data: [],
+        borderColor: '#ff6b6b',
+        backgroundColor: 'rgba(255,107,107,0.15)',
+        tension: 0.4,
+        fill: true,
+        stepped: false,
+        pointRadius: 2,
+        pointHoverRadius: 6,
+        borderWidth: 3
+      }]},
       options: {
         animation: { duration: 0 },
-        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(1)}°C` }},
           zoom: {
-            zoom: {
-              wheel: { enabled: false },    // видалили зум коліщатком
-              pinch: { enabled: true },
-              mode: 'x'
-            },
-            pan: {
-              enabled: true,                // тільки гортання повзунком
-              mode: 'x'
-            }
+            pan: { enabled: true, mode: 'x' },
+            zoom: { wheel: { enabled: false }, pinch: { enabled: true }, mode: 'x' }
           }
         },
         scales: {
-          x: {
-            type: 'time',
-            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }},
-            ticks: { color: '#666' },
-            grid: { display: false }
-          },
-          y: {
+          x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }}, grid: { display: false }},
+          y: { 
             ticks: { 
-              color: '#666', 
-              callback: v => v.toFixed(1) + '°C'  // фікс помилки: заокруглення до 1 десяткової
+              callback: v => v.toFixed(1) + '°C',
+              color: '#666',
+              font: { size: 13 }
             },
             grid: { color: 'rgba(0,0,0,0.05)' }
           }
         }
       }
     });
-    function update() {
+
+    function updateChart() {
       fetch(API)
         .then(r => r.json())
         .then(data => {
-          const points = data.map(d => ({ x: new Date(d.timestamp), y: parseFloat(d.temp.toFixed(1)) }));  // фікс: заокруглення до 1 десяткової
+          if (!data.length) return;
+
+          // Чистимо значення до 1 знаку після коми
+          const points = data.map(d => ({
+            x: new Date(d.timestamp),
+            y: parseFloat(d.temp.toFixed(1))
+          }));
+
           chart.data.datasets[0].data = points;
 
-          // Фокус на останніх 1 годині (3600 секунд)
-          if (points.length > 0) {
-            const lastTime = points[points.length - 1].x;
-            chart.options.scales.x.min = new Date(lastTime - 1 * 60 * 60 * 1000);  // 1 година
-            chart.options.scales.x.max = lastTime;
-          }
+          // Встановлюємо масштаб за вибором
+          const seconds = parseInt(select.value);
+          const lastTime = points[points.length - 1].x;
+          chart.options.scales.x.min = new Date(lastTime - seconds * 1000);
+          chart.options.scales.x.max = lastTime;
 
           chart.update('quiet');
 
-          if (data.length > 0) {
-            const last = parseFloat(data[data.length - 1].temp.toFixed(1));  // фікс: заокруглення
-            document.getElementById('current-temp').textContent = last.toFixed(1) + "°C";
-            document.title = last.toFixed(1) + "°C – Temp-m2";
-          }
+          // Поточна температура
+          const lastTemp = points[points.length - 1].y;
+          document.getElementById('current-temp').textContent = lastTemp.toFixed(1) + '°C';
+          document.title = lastTemp.toFixed(1) + '°C – Temp-m2';
         })
         .catch(() => {
-          document.getElementById('current-temp').textContent = "немає зв’язку";
+          document.getElementById('current-temp').textContent = '×';
         });
     }
-    update();
-    setInterval(update, 20000);
+
+    // При зміні вибору — оновлюємо графік
+    select.addEventListener('change', updateChart);
+
+    // Перше завантаження + кожні 20 сек
+    updateChart();
+    setInterval(updateChart, 20000);
   </script>
 </body>
 </html>
