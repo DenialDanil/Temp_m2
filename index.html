@@ -8,12 +8,12 @@
   <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
   <style>
-    body {margin:0; font-family: system-ui, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; min-height:100vh;}
+    body {margin:0; font-family:system-ui,sans-serif; background:linear-gradient(135deg,#667eea,#764ba2); color:white; min-height:100vh;}
     header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
     h1 {margin:0; font-size:2.5em;}
     .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:4em; margin:30px 0; text-shadow:0 4px 10px rgba(0,0,0,0.3);}
-    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.3);}
+    .current {text-align:center; font-size:4.5em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
+    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
     footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
   </style>
 </head>
@@ -27,14 +27,43 @@
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
-    
-    const chart = new Chart(document.getElementById('chart'), {
+
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
       type: 'line',
-      data: { datasets: [{ label: 'Температура °C', borderColor: '#ff6b6b', backgroundColor: 'rgba(255,107,107,0.1)', tension: 0.4, fill: true }] },
+      data: {
+        datasets: [{
+          label: 'Температура °C',
+          data: [],
+          borderColor: '#ff6b6b',
+          backgroundColor: 'rgba(255,107,107,0.15)',
+          tension: 0.4,           // плавна лінія
+          fill: true,
+          stepped: false,         // головне — вимкнули "сходинки"
+          pointRadius: 2,
+          pointHoverRadius: 6,
+          borderWidth: 3
+        }]
+      },
       options: {
-        animation: false,
-        scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } } } },
-        plugins: { legend: { display: false } }
+        animation: { duration: 0 },           // без анімації = миттєве оновлення
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(1)}°C` }}
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }},
+            ticks: { color: '#666' },
+            grid: { display: false }
+          },
+          y: {
+            ticks: { color: '#666', callback: v => v + '°C' },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          }
+        }
       }
     });
 
@@ -42,18 +71,21 @@
       fetch(API)
         .then(r => r.json())
         .then(data => {
-          const times = data.map(d => new Date(d.timestamp));
-          chart.data.labels = times;
-          chart.data.datasets[0].data = data.map(d => d.temp);
+          const points = data.map(d => ({ x: new Date(d.timestamp), y: d.temp }));
+
+          chart.data.datasets[0].data = points;
           chart.update('quiet');
 
           if (data.length > 0) {
-            const last = data[data.length-1].temp;
+            const last = data[data.length - 1].temp;
             document.getElementById('current-temp').textContent = last.toFixed(1) + "°C";
             document.title = last.toFixed(1) + "°C – Temp-m2";
           }
         })
-        .catch(() => document.getElementById('current-temp').textContent = "немає зв’язку");
+        .catch(err => {
+          console.error(err);
+          document.getElementById('current-temp').textContent = "немає зв’язку";
+        });
     }
 
     update();
