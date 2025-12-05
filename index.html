@@ -12,9 +12,9 @@
     header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
     h1 {margin:0; font-size:2.5em;}
     .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:4.5em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
-    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
-    footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
+    .current {text-align:center; font-size:5.5em; margin:40px 0; font-weight:bold; text-shadow:0 6px 20px rgba(0,0,0,0.5);}
+    canvas {background:white; border-radius:20px; box-shadow:0 15px 40px rgba(0,0,0,0.4); height:520px !important;}
+    footer {text-align:center; padding:30px; opacity:0.9; font-size:1em;}
   </style>
 </head>
 <body>
@@ -23,48 +23,47 @@
     <div class="current" id="current-temp">--°C</div>
     <canvas id="chart"></canvas>
   </div>
-  <footer>Temp-m2 ← дані з Temp-stat2 • оновлення кожні 20 сек</footer>
+  <footer>Temp-m2 • час по Києву • крок 0.5°C • великий масштаб</footer>
 
   <script>
-    const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
-    const ctx = document.getElementById('chart').getContext('2d');
-    
-    const chart = new Chart(ctx, {
+    const API = "https://temp-stat2.onrender.com/api/data?limit=3000";
+
+    const chart = new Chart(document.getElementById('chart'), {
       type: 'line',
-      data: {
-        datasets: [{
-          label: 'Температура °C',
-          data: [],
-          borderColor: '#ff6b6b',
-          backgroundColor: 'rgba(255,107,107,0.15)',
-          tension: 0.4,
-          fill: true,
-          stepped: false,
-          pointRadius: 2,
-          pointHoverRadius: 6,
-          borderWidth: 3
-        }]
-      },
+      data: { datasets: [{
+        data: [],
+        borderColor: '#ff6b6b',
+        backgroundColor: 'rgba(255,107,107,0.2)',
+        tension: 0.4,
+        fill: true,
+        stepped: false,
+        pointRadius: 5,
+        pointHoverRadius: 10,
+        borderWidth: 4
+      }]},
       options: {
-        animation: { duration: 0 },
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(1)}°C` }}
-        },
+        animation: false,
+        plugins: { legend: { display: false }},
         scales: {
           x: {
             type: 'time',
-            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }},
+            time: { 
+              unit: 'hour',
+              displayFormats: { hour: 'HH:mm' }
+            },
+            ticks: { color: '#333', font: { size: 14 }},
             grid: { display: false }
           },
           y: {
             ticks: {
-              stepSize: 0.5,                    // головне — крок 0.5°C
-              callback: value => value + '°C',  // підпис типу 20.5°C
-              color: '#666'
+              stepSize: 0.5,
+              callback: v => v + '°C',
+              font: { size: 18, weight: 'bold' },
+              color: '#e74c3c'
             },
-            grid: { color: 'rgba(0,0,0,0.05)' }
+            grid: { color: 'rgba(0,0,0,0.1)', linewidth: 2 },
+            suggestedMin: -2,
+            suggestedMax: 2
           }
         }
       }
@@ -74,18 +73,26 @@
       fetch(API)
         .then(r => r.json())
         .then(data => {
-          const points = data.map(d => ({ x: new Date(d.timestamp), y: d.temp }));
-          chart.data.datasets[0].data = points;
+          if (!data.length) return;
+
+          // КОНВЕРТАЦІЯ В КИЇВСЬКИЙ ЧАС (правильно!)
+          const uaData = data.map(item => {
+            const utcDate = new Date(item.timestamp); // вже в UTC
+            // Конвертуємо в київський час (автоматично враховує зимовий/літній)
+            const uaTime = new Date(utcDate.toLocaleString("en-US", { timeZone: "Europe/Kyiv" }));
+            return { x: uaTime, y: item.temp };
+          });
+
+          chart.data.datasets[0].data = uaData;
           chart.update('quiet');
 
-          if (data.length > 0) {
-            const last = data[data.length - 1].temp;
-            document.getElementById('current-temp').textContent = last.toFixed(1) + "°C";
-            document.title = last.toFixed(1) + "°C – Temp-m2";
-          }
+          // Поточна температура
+          const lastTemp = data[data.length - 1].temp;
+          document.getElementById('current-temp').textContent = lastTemp.toFixed(1) + '°C';
+          document.title = lastTemp.toFixed(1) + '°C – Temp-m2';
         })
         .catch(() => {
-          document.getElementById('current-temp').textContent = "немає зв’язку";
+          document.getElementById('current-temp').textContent = '×';
         });
     }
 
