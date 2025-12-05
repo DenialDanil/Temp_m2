@@ -12,9 +12,9 @@
     header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
     h1 {margin:0; font-size:2.5em;}
     .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:5.5em; margin:40px 0; font-weight:bold; text-shadow:0 6px 20px rgba(0,0,0,0.5);}
-    canvas {background:white; border-radius:20px; box-shadow:0 15px 40px rgba(0,0,0,0.4); height:520px !important;}
-    footer {text-align:center; padding:30px; opacity:0.9; font-size:1em;}
+    .current {text-align:center; font-size:5em; margin:40px 0; text-shadow:0 4px 15px rgba(0,0,0,0.5);}
+    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
+    footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
   </style>
 </head>
 <body>
@@ -23,7 +23,7 @@
     <div class="current" id="current-temp">--°C</div>
     <canvas id="chart"></canvas>
   </div>
-  <footer>Temp-m2 • час по Києву • крок 0.5°C • великий масштаб</footer>
+  <footer>Temp-m2 • час по Києву • крок 0.5°C • оновлення кожні 20 сек</footer>
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=3000";
@@ -33,13 +33,13 @@
       data: { datasets: [{
         data: [],
         borderColor: '#ff6b6b',
-        backgroundColor: 'rgba(255,107,107,0.2)',
+        backgroundColor: 'rgba(255,107,107,0.15)',
         tension: 0.4,
         fill: true,
         stepped: false,
-        pointRadius: 5,
-        pointHoverRadius: 10,
-        borderWidth: 4
+        pointRadius: 1,           // майже невидимі точки
+        pointHoverRadius: 6,      // тільки при наведенні видно
+        borderWidth: 3
       }]},
       options: {
         animation: false,
@@ -47,23 +47,18 @@
         scales: {
           x: {
             type: 'time',
-            time: { 
-              unit: 'hour',
-              displayFormats: { hour: 'HH:mm' }
-            },
-            ticks: { color: '#333', font: { size: 14 }},
+            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }},
             grid: { display: false }
           },
           y: {
             ticks: {
-              stepSize: 0.5,
+              stepSize: 0.5,                     // крок 0.5°C
               callback: v => v + '°C',
-              font: { size: 18, weight: 'bold' },
-              color: '#e74c3c'
+              font: { size: 14 },
+              color: '#555'
             },
-            grid: { color: 'rgba(0,0,0,0.1)', linewidth: 2 },
-            suggestedMin: -2,
-            suggestedMax: 2
+            grid: { color: 'rgba(0,0,0,0.08)' }
+            // без suggestedMin/Max — масштаб звичайний, як раніше
           }
         }
       }
@@ -75,18 +70,16 @@
         .then(data => {
           if (!data.length) return;
 
-          // КОНВЕРТАЦІЯ В КИЇВСЬКИЙ ЧАС (правильно!)
+          // Конвертація в київський час
           const uaData = data.map(item => {
-            const utcDate = new Date(item.timestamp); // вже в UTC
-            // Конвертуємо в київський час (автоматично враховує зимовий/літній)
-            const uaTime = new Date(utcDate.toLocaleString("en-US", { timeZone: "Europe/Kyiv" }));
-            return { x: uaTime, y: item.temp };
+            const utc = new Date(item.timestamp);
+            const kyivTime = new Date(utc.toLocaleString("en-US", { timeZone: "Europe/Kyiv" }));
+            return { x: kyivTime, y: item.temp };
           });
 
           chart.data.datasets[0].data = uaData;
           chart.update('quiet');
 
-          // Поточна температура
           const lastTemp = data[data.length - 1].temp;
           document.getElementById('current-temp').textContent = lastTemp.toFixed(1) + '°C';
           document.title = lastTemp.toFixed(1) + '°C – Temp-m2';
