@@ -71,7 +71,10 @@
             grid: { display: false }
           },
           y: {
-            ticks: { color: '#666', callback: v => v + '°C' },
+            ticks: { 
+              color: '#666', 
+              callback: v => v.toFixed(1) + '°C'  // фікс помилки: заокруглення до 1 десяткової
+            },
             grid: { color: 'rgba(0,0,0,0.05)' }
           }
         }
@@ -81,7 +84,7 @@
       fetch(API)
         .then(r => r.json())
         .then(data => {
-          const points = data.map(d => ({ x: new Date(d.timestamp), y: d.temp }));
+          const points = data.map(d => ({ x: new Date(d.timestamp), y: parseFloat(d.temp.toFixed(1)) }));  // фікс: заокруглення до 1 десяткової
           chart.data.datasets[0].data = points;
 
           // Фокус на останніх 1 годині (3600 секунд)
@@ -94,7 +97,7 @@
           chart.update('quiet');
 
           if (data.length > 0) {
-            const last = data[data.length - 1].temp;
+            const last = parseFloat(data[data.length - 1].temp.toFixed(1));  // фікс: заокруглення
             document.getElementById('current-temp').textContent = last.toFixed(1) + "°C";
             document.title = last.toFixed(1) + "°C – Temp-m2";
           }
