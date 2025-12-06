@@ -3,125 +3,67 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Температура – Temp-m2</title>
+  <title>Температура + CO₂ – Temp-m2</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
-    body {margin:0; font-family:system-ui,sans-serif; background:#1a1a2e; color:white; min-height:100vh;}
+    body {margin:0; font-family:system-ui,sans-serif; background:#1e1e2e; color:white;}
     header {text-align:center; padding:40px; background:#2d2d44;}
     h1 {margin:0; font-size:2.8em;}
-    .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:6.5em; margin:40px 0; font-weight:bold; color:#ff6b6b; text-shadow:0 6px 20px rgba(0,0,0,0.6);}
-    .controls {text-align:center; margin:20px 0;}
-    select {padding:14px 24px; font-size:1.2em; border-radius:12px; border:none; background:white; color:#333; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.4);}
-    select:focus {outline:none; box-shadow:0 0 0 5px rgba(255,107,107,0.5);}
-    canvas {background:white; border-radius:20px; box-shadow:0 15px 40px rgba(0,0,0,0.5);}
-    footer {text-align:center; padding:30px; opacity:0.8; font-size:0.9em;}
+    .container {max-width:1200px; margin:0 auto; padding:20px;}
+    .current {text-align:center; font-size:4em; margin:30px 0;}
+    .current span {display:inline-block; margin:0 20px; padding:10px 20px; background:rgba(255,255,255,0.1); border-radius:12px;}
+    .charts {display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+    @media (max-width:900px) {.charts {grid-template-columns:1fr;}}
+    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+    footer {text-align:center; padding:30px; opacity:0.8;}
   </style>
 </head>
 <body>
-  <header><h1>Температура</h1></header>
-  
+  <header><h1>Моніторинг довкілля</h1></header>
   <div class="container">
-    <div class="current" id="current">--°C</div>
-
-    <div class="controls">
-      <select id="timeRange">
-        <option value="1200">20 хвилин</option>
-        <option value="3600" selected>1 година</option>
-        <option value="10800">3 години</option>
-        <option value="18000">5 годин</option>
-        <option value="43200">12 годин</option>
-        <option value="86400">24 години</option>
-      </select>
+    <div class="current">
+      <span id="temp">--°C</span>
+      <span id="co2">-- ppm</span>
     </div>
-
-    <canvas id="chart"></canvas>
+    <div class="charts">
+      <canvas id="tempChart"></canvas>
+      <canvas id="co2Chart"></canvas>
+    </div>
   </div>
-
-  <footer>Temp-m2 • прямі лінії • без точок • без заливки • крок 0.5°C</footer>
+  <footer>Temp-m2 • температура + CO₂ • оновлення кожні 20 сек</footer>
 
   <script>
-    const API = "https://temp-stat2.onrender.com/api/data?limit=5000";
-    const ctx = document.getElementById('chart').getContext('2d');
-    const select = document.getElementById('timeRange');
+    const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
 
-    const chart = new Chart(ctx, {
-      type: 'line',
-      data: { datasets: [{
-        data: [],
-        borderColor: '#ff6b6b',
-        backgroundColor: 'transparent',  // без заливки
-        tension: 0,                        // прямі лінії (без згладжування)
-        fill: false,                       // без заливки під лінією
-        stepped: false,
-        pointRadius: 0,                    // повністю без точок
-        pointHoverRadius: 0,
-        borderWidth: 3
-      }]},
-      options: {
-        animation: { duration: 0 },
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toFixed(1)}°C` }},
-          zoom: {
-            pan: { enabled: true, mode: 'x' },
-            zoom: { wheel: { enabled: false }, pinch: { enabled: true }, mode: 'x' }
-          }
-        },
-        scales: {
-          x: { 
-            type: 'time', 
-            time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }}, 
-            grid: { display: false }
-          },
-          y: { 
-            ticks: { 
-              stepSize: 0.5,
-              callback: v => v.toFixed(1) + '°C',
-              font: { size: 14 },
-              color: '#555'
-            },
-            grid: { color: 'rgba(0,0,0,0.08)' }
-          }
-        }
-      }
-    });
+    const tempChart = new Chart(document.getElementById('tempChart'), {type:'line', data:{datasets:[{label:'Температура °C', borderColor:'#ff6b6b', data:[], tension:0.4, fill:true, pointRadius:0, borderWidth:3}]}, options:{animation:false, plugins:{legend:{display:false}}, scales:{x:{type:'time', grid:{display:false}}, y:{ticks:{stepSize:0.5, callback:v=>v+'°C'}}}}});
+    const co2Chart  = new Chart(document.getElementById('co2Chart'),  {type:'line', data:{datasets:[{label:'CO₂ ppm',       borderColor:'#4ade80', data:[], tension:0.4, fill:true, pointRadius:0, borderWidth:3}]}, options:{animation:false, plugins:{legend:{display:false}}, scales:{x:{type:'time', grid:{display:false}}, y:{ticks:{callback:v=>v+' ppm'}}}}});
 
-    function updateChart() {
-      fetch(API)
-        .then(r => r.json())
-        .then(data => {
-          if (!data.length) return;
+    function update() {
+      fetch(API).then(r=>r.json()).then(data=>{
+        if(!data.length) return;
 
-          const points = data.map(d => ({
-            x: new Date(d.timestamp),
-            y: parseFloat(d.temp.toFixed(1))  // чистимо 24.00000000007
-          }));
+        const points = data.map(d=>({
+          x: new Date(d.timestamp),
+          y_temp: parseFloat(d.temp.toFixed(1)),
+          y_co2:  parseInt(d.co2)
+        }));
 
-          chart.data.datasets[0].data = points;
+        tempChart.data.datasets[0].data = points.map(p=>({x:p.x, y:p.y_temp}));
+        co2Chart.data.datasets[0].data  = points.map(p=>({x:p.x, y:p.y_co2}));
 
-          const seconds = parseInt(select.value);
-          const lastTime = points[points.length - 1].x;
-          chart.options.scales.x.min = new Date(lastTime - seconds * 1000);
-          chart.options.scales.x.max = lastTime;
+        tempChart.update('quiet');
+        co2Chart.update('quiet');
 
-          chart.update('quiet');
-
-          const lastTemp = points[points.length - 1].y;
-          document.getElementById('current').textContent = lastTemp.toFixed(1) + '°C';
-          document.title = lastTemp.toFixed(1) + '°C – Temp-m2';
-        })
-        .catch(() => {
-          document.getElementById('current').textContent = '×';
-        });
+        const last = data[data.length-1];
+        document.getElementById('temp').textContent = parseFloat(last.temp.toFixed(1)) + '°C';
+        document.getElementById('co2').textContent  = last.co2 + ' ppm';
+      });
     }
 
-    select.addEventListener('change', updateChart);
-    updateChart();
-    setInterval(updateChart, 20000);
+    update();
+    setInterval(update, 20000);
   </script>
 </body>
 </html>
