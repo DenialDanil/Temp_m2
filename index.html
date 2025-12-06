@@ -3,42 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Температура + CO₂ – Temp-m2</title>
+  <title>Температура + CO₂ + TVOC</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
   <style>
-    body {margin:0; font-family:system-ui,sans-serif; background:#1e1e2e; color:white;}
-    header {text-align:center; padding:40px; background:#2d2d44;}
-    h1 {margin:0; font-size:2.8em;}
-    .container {max-width:1200px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:4em; margin:30px 0;}
-    .current span {display:inline-block; margin:0 20px; padding:10px 20px; background:rgba(255,255,255,0.1); border-radius:12px;}
-    .charts {display:grid; grid-template-columns:1fr 1fr; gap:20px;}
-    @media (max-width:900px) {.charts {grid-template-columns:1fr;}}
-    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.5);}
-    footer {text-align:center; padding:30px; opacity:0.8;}
+    body{margin:0;background:#0f0f1a;color:#fff;font-family:system-ui;}
+    header{text-align:center;padding:30px;background:#1a1a2e;}
+    h1{font-size:2.5em;margin:0;}
+    .container{max-width:1200px;margin:0 auto;padding:20px;}
+    .current{text-align:center;font-size:3.5em;margin:20px;}
+    .current span{display:inline-block;margin:15px;padding:10px 20px;background:rgba(255,255,255,0.1);border-radius:12px;}
+    .charts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+    @media(max-width:1000px){.charts{grid-template-columns:1fr;}}
+    canvas{background:#fff;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
+    footer{text-align:center;padding:20px;opacity:0.7;}
   </style>
 </head>
 <body>
-  <header><h1>Моніторинг довкілля</h1></header>
+  <header><h1>Моніторинг повітря</h1></header>
   <div class="container">
     <div class="current">
       <span id="temp">--°C</span>
       <span id="co2">-- ppm</span>
+      <span id="tvoc">-- ppb</span>
     </div>
     <div class="charts">
       <canvas id="tempChart"></canvas>
       <canvas id="co2Chart"></canvas>
+      <canvas id="tvocChart"></canvas>
     </div>
   </div>
-  <footer>Temp-m2 • температура + CO₂ • оновлення кожні 20 сек</footer>
+  <footer>Temp-m2 • температура + CO₂ (MQ-135) + TVOC (CCS811)</footer>
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
 
-    const tempChart = new Chart(document.getElementById('tempChart'), {type:'line', data:{datasets:[{label:'Температура °C', borderColor:'#ff6b6b', data:[], tension:0.4, fill:true, pointRadius:0, borderWidth:3}]}, options:{animation:false, plugins:{legend:{display:false}}, scales:{x:{type:'time', grid:{display:false}}, y:{ticks:{stepSize:0.5, callback:v=>v+'°C'}}}}});
-    const co2Chart  = new Chart(document.getElementById('co2Chart'),  {type:'line', data:{datasets:[{label:'CO₂ ppm',       borderColor:'#4ade80', data:[], tension:0.4, fill:true, pointRadius:0, borderWidth:3}]}, options:{animation:false, plugins:{legend:{display:false}}, scales:{x:{type:'time', grid:{display:false}}, y:{ticks:{callback:v=>v+' ppm'}}}}});
+    const tempChart = new Chart(document.getElementById('tempChart'), {type:'line',data:{datasets:[{label:'Температура',borderColor:'#ff4444',data:[],tension:0.4,fill:true,pointRadius:0,borderWidth:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:0.5,callback:v=>v+'°C'}}}}});
+    const co2Chart  = new Chart(document.getElementById('co2Chart'),  {type:'line',data:{datasets:[{label:'CO₂',borderColor:'#44ff44',data:[],tension:0.4,fill:true,pointRadius:0,borderWidth:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+' ppm'}}}}});
+    const tvocChart = new Chart(document.getElementById('tvocChart'), {type:'line',data:{datasets:[{label:'TVOC',borderColor:'#4444ff',data:[],tension:0.4,fill:true,pointRadius:0,borderWidth:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+' ppb'}}}}});
 
     function update() {
       fetch(API).then(r=>r.json()).then(data=>{
@@ -46,19 +49,23 @@
 
         const points = data.map(d=>({
           x: new Date(d.timestamp),
-          y_temp: parseFloat(d.temp.toFixed(1)),
-          y_co2:  parseInt(d.co2)
+          temp: parseFloat(d.temp.toFixed(1)),
+          co2: d.co2,
+          tvoc: d.tvoc
         }));
 
-        tempChart.data.datasets[0].data = points.map(p=>({x:p.x, y:p.y_temp}));
-        co2Chart.data.datasets[0].data  = points.map(p=>({x:p.x, y:p.y_co2}));
+        tempChart.data.datasets[0].data = points.map(p=>({x:p.x,y:p.temp}));
+        co2Chart.data.datasets[0].data  = points.map(p=>({x:p.x,y:p.co2}));
+        tvocChart.data.datasets[0].data = points.map(p=>({x:p.x,y:p.tvoc}));
 
         tempChart.update('quiet');
         co2Chart.update('quiet');
+        tvocChart.update('quiet');
 
         const last = data[data.length-1];
         document.getElementById('temp').textContent = parseFloat(last.temp.toFixed(1)) + '°C';
         document.getElementById('co2').textContent  = last.co2 + ' ppm';
+        document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
       });
     }
 
