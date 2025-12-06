@@ -4,20 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Температура + CO₂ + TVOC</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
   <style>
     body{margin:0;background:#0f0f1a;color:#fff;font-family:system-ui;}
     header{text-align:center;padding:30px;background:#1a1a2e;}
     h1{font-size:2.5em;margin:0;}
     .container{max-width:1200px;margin:0 auto;padding:20px;}
-    .current{text-align:center;font-size:3.5em;margin:20px;}
-    .current span{display:inline-block;margin:15px;padding:10px 20px;background:rgba(255,255,255,0.1);border-radius:12px;}
+    .current{text-align:center;font-size:3.5em;margin:30px;}
+    .current span{display:inline-block;margin:10px;padding:12px 24px;background:rgba(255,255,255,0.15);border-radius:15px;min-width:140px;}
     .charts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
     @media(max-width:1000px){.charts{grid-template-columns:1fr;}}
-    canvas{background:#fff;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}
-    footer{text-align:center;padding:20px;opacity:0.7;}
+    canvas{background:#fff;border-radius:15px;box-shadow:0 10px 30px rgba(0,0,0,0.6);height:300px;}
+    footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
   </style>
 </head>
 <body>
@@ -34,39 +34,63 @@
       <canvas id="tvocChart"></canvas>
     </div>
   </div>
-  <footer>Temp-m2 • температура + CO₂ (MQ-135) + TVOC (CCS811)</footer>
+  <footer>Temp-m2 • температура + CO₂ (MQ-135) + TVOC (CCS811) • оновлення кожні 20 сек</footer>
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=2000";
 
-    const tempChart = new Chart(document.getElementById('tempChart'), {type:'line',data:{datasets:[{label:'Температура',borderColor:'#ff4444',data:[],tension:0.4,fill:true,pointRadius:0,borderWidth:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:0.5,callback:v=>v+'°C'}}}}});
-    const co2Chart  = new Chart(document.getElementById('co2Chart'),  {type:'line',data:{datasets:[{label:'CO₂',borderColor:'#44ff44',data:[],tension:0.4,fill:true,pointRadius:0,borderWidth:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+' ppm'}}}}});
-    const tvocChart = new Chart(document.getElementById('tvocChart'), {type:'line',data:{datasets:[{label:'TVOC',borderColor:'#4444ff',data:[],tension:0.4,fill:true,pointRadius:0,borderWidth:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+' ppb'}}}}});
+    // Температура
+    const tempChart = new Chart(document.getElementById('tempChart'), {
+      type: 'line',
+      data: { datasets: [{ label: 'Температура °C', borderColor: '#ff4444', backgroundColor: 'rgba(255,68,68,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }}, grid: { display: false }}, y: { ticks: { stepSize: 0.5, callback: v => v + '°C' }}} }
+    });
+
+    // CO₂ (MQ-135)
+    const co2Chart = new Chart(document.getElementById('co2Chart'), {
+      type: 'line',
+      data: { datasets: [{ label: 'CO₂ ppm', borderColor: '#44ff44', backgroundColor: 'rgba(68,255,68,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }}, grid: { display: false }}, y: { ticks: { callback: v => v + ' ppm' }}} }
+    });
+
+    // TVOC (CCS811)
+    const tvocChart = new Chart(document.getElementById('tvocChart'), {
+      type: 'line',
+      data: { datasets: [{ label: 'TVOC ppb', borderColor: '#4444ff', backgroundColor: 'rgba(68,68,255,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }}, grid: { display: false }}, y: { ticks: { callback: v => v + ' ppb' }}} }
+    });
 
     function update() {
-      fetch(API).then(r=>r.json()).then(data=>{
-        if(!data.length) return;
+      fetch(API)
+        .then(r => r.json())
+        .then(data => {
+          if (!data || data.length === 0) return;
 
-        const points = data.map(d=>({
-          x: new Date(d.timestamp),
-          temp: parseFloat(d.temp.toFixed(1)),
-          co2: d.co2,
-          tvoc: d.tvoc
-        }));
+          const points = data.map(d => ({
+            x: new Date(d.timestamp),
+            temp: parseFloat(d.temp.toFixed(1)),
+            co2: d.co2,
+            tvoc: d.tvoc
+          }));
 
-        tempChart.data.datasets[0].data = points.map(p=>({x:p.x,y:p.temp}));
-        co2Chart.data.datasets[0].data  = points.map(p=>({x:p.x,y:p.co2}));
-        tvocChart.data.datasets[0].data = points.map(p=>({x:p.x,y:p.tvoc}));
+          // Оновлюємо графіки
+          tempChart.data.datasets[0].data = points.map(p => ({x: p.x, y: p.temp}));
+          co2Chart.data.datasets[0].data  = points.map(p => ({x: p.x, y: p.co2}));
+          tvocChart.data.datasets[0].data = points.map(p => ({x: p.x, y: p.tvoc}));
 
-        tempChart.update('quiet');
-        co2Chart.update('quiet');
-        tvocChart.update('quiet');
+          tempChart.update('quiet');
+          co2Chart.update('quiet');
+          tvocChart.update('quiet');
 
-        const last = data[data.length-1];
-        document.getElementById('temp').textContent = parseFloat(last.temp.toFixed(1)) + '°C';
-        document.getElementById('co2').textContent  = last.co2 + ' ppm';
-        document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
-      });
+          // Поточні значення
+          const last = data[data.length - 1];
+          document.getElementById('temp').textContent = parseFloat(last.temp.toFixed(1)) + '°C';
+          document.getElementById('co2').textContent  = last.co2 + ' ppm';
+          document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
+        })
+        .catch(err => {
+          console.error("Помилка завантаження:", err);
+        });
     }
 
     update();
