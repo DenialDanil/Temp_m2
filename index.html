@@ -9,23 +9,23 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
-    body {margin:0; font-family:system-ui,sans-serif; background:linear-gradient(135deg,#667eea,#764ba2); color:white; min-height:100vh;}
-    header {text-align:center; padding:40px 20px; background:rgba(0,0,0,0.2);}
-    h1 {margin:0; font-size:2.5em;}
+    body {margin:0; font-family:system-ui,sans-serif; background:#1a1a2e; color:white; min-height:100vh;}
+    header {text-align:center; padding:40px; background:#2d2d44;}
+    h1 {margin:0; font-size:2.8em;}
     .container {max-width:1100px; margin:0 auto; padding:20px;}
-    .current {text-align:center; font-size:4.8em; margin:30px 0; text-shadow:0 4px 15px rgba(0,0,0,0.4);}
+    .current {text-align:center; font-size:6.5em; margin:40px 0; font-weight:bold; color:#ff6b6b; text-shadow:0 6px 20px rgba(0,0,0,0.6);}
     .controls {text-align:center; margin:20px 0;}
-    select {padding:12px 20px; font-size:1.1em; border-radius:12px; border:none; background:white; color:#333; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.3);}
-    select:focus {outline:none; box-shadow:0 0 0 4px rgba(255,107,107,0.4);}
-    canvas {background:white; border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,0.4);}
-    footer {text-align:center; padding:30px; opacity:0.9; font-size:0.9em;}
+    select {padding:14px 24px; font-size:1.2em; border-radius:12px; border:none; background:white; color:#333; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+    select:focus {outline:none; box-shadow:0 0 0 5px rgba(255,107,107,0.5);}
+    canvas {background:white; border-radius:20px; box-shadow:0 15px 40px rgba(0,0,0,0.5);}
+    footer {text-align:center; padding:30px; opacity:0.8; font-size:0.9em;}
   </style>
 </head>
 <body>
-  <header><h1>Температура в реальному часі</h1></header>
+  <header><h1>Температура</h1></header>
   
   <div class="container">
-    <div class="current" id="current-temp">--°C</div>
+    <div class="current" id="current">--°C</div>
 
     <div class="controls">
       <select id="timeRange">
@@ -41,7 +41,7 @@
     <canvas id="chart"></canvas>
   </div>
 
-  <footer>Temp-m2 • крок 0.5°C • вибір масштабу • гортай повзунком</footer>
+  <footer>Temp-m2 • прямі лінії • без точок • без заливки • крок 0.5°C</footer>
 
   <script>
     const API = "https://temp-stat2.onrender.com/api/data?limit=5000";
@@ -53,12 +53,12 @@
       data: { datasets: [{
         data: [],
         borderColor: '#ff6b6b',
-        backgroundColor: 'rgba(255,107,107,0.15)',
-        tension: 0.4,
-        fill: true,
+        backgroundColor: 'transparent',  // без заливки
+        tension: 0,                        // прямі лінії (без згладжування)
+        fill: false,                       // без заливки під лінією
         stepped: false,
-        pointRadius: 2,
-        pointHoverRadius: 6,
+        pointRadius: 0,                    // повністю без точок
+        pointHoverRadius: 0,
         borderWidth: 3
       }]},
       options: {
@@ -81,10 +81,10 @@
             ticks: { 
               stepSize: 0.5,
               callback: v => v.toFixed(1) + '°C',
-              color: '#666',
-              font: { size: 13 }
+              font: { size: 14 },
+              color: '#555'
             },
-            grid: { color: 'rgba(0,0,0,0.05)' }
+            grid: { color: 'rgba(0,0,0,0.08)' }
           }
         }
       }
@@ -98,7 +98,7 @@
 
           const points = data.map(d => ({
             x: new Date(d.timestamp),
-            y: parseFloat(d.temp.toFixed(1))  // чистимо 24.00000000007 → 24.0
+            y: parseFloat(d.temp.toFixed(1))  // чистимо 24.00000000007
           }));
 
           chart.data.datasets[0].data = points;
@@ -111,11 +111,11 @@
           chart.update('quiet');
 
           const lastTemp = points[points.length - 1].y;
-          document.getElementById('current-temp').textContent = lastTemp.toFixed(1) + '°C';
+          document.getElementById('current').textContent = lastTemp.toFixed(1) + '°C';
           document.title = lastTemp.toFixed(1) + '°C – Temp-m2';
         })
         .catch(() => {
-          document.getElementById('current-temp').textContent = '×';
+          document.getElementById('current').textContent = '×';
         });
     }
 
