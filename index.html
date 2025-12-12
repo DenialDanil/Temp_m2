@@ -12,8 +12,15 @@
     header{text-align:center;padding:30px;background:#1a1a2e;}
     h1{font-size:2.8em;margin:0;}
     .container{max-width:1300px;margin:0 auto;padding:20px;}
+    .controls{text-align:center;margin:20px 0;}
+    .btn-group button{
+      padding:12px 24px;margin:5px;font-size:1.1em;border:none;border-radius:12px;
+      background:#333;color:#fff;cursor:pointer;transition:0.3s;
+    }
+    .btn-group button.active{background:#ff6b6b;color:white;font-weight:bold;}
+    .btn-group button:hover{background:#555;}
     .current{text-align:center;font-size:3.2em;margin:30px;}
-    .current span{display:inline-block;margin:8px;padding:12px 22px;background:rgba(255,255,255,0.12);border-radius:15px;min-width:130px;}
+    .current span{display:inline-block;margin:8px;padding:12px 22px;background:rgba(255,255,255,0.12);border-radius:15px;min-width:150px;}
     .charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
     @media(max-width:1000px){.charts{grid-template-columns:1fr;}}
     canvas{background:#fff;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,0.7);height:300px;}
@@ -22,8 +29,16 @@
 </head>
 <body>
   <header><h1>Повний моніторинг довкілля</h1></header>
-  
+
   <div class="container">
+    <div class="controls">
+      <div class="btn-group">
+        <button onclick="setMode('today')"   id="btn-today">Сьогодні</button>
+        <button onclick="setMode('yesterday')" id="btn-yesterday">Вчора</button>
+        <button onclick="setMode('both')"    id="btn-both" class="active">Обидва дні</button>
+      </div>
+    </div>
+
     <div class="current">
       <span id="temp">--°C</span>
       <span id="co2">-- ppm</span>
@@ -42,67 +57,91 @@
   <footer>Temp-m2 • температура + CO₂ + TVOC + освітленість • оновлення кожні 20 сек</footer>
 
   <script>
-    const API = "https://temp-stat2.onrender.com/api/data?limit=3000";
+    // === НАЛАШТУВАННЯ ===
+    const BASE_URL = "https://temp-stat2.onrender.com";  // ← заміни, якщо інший домен
+    let currentMode = localStorage.getItem('viewMode') || 'both';
 
-    // Температура
-    const tempChart = new Chart(document.getElementById('tempChart'), {
-      type: 'line', data: { datasets: [{ label: 'Температура', borderColor: '#ff4444', backgroundColor: 'rgba(255,68,68,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { stepSize: 0.5, callback: v => v + '°C' }}} }
-    });
+    // === Графіки ===
+    const charts = {
+      temp: new Chart(document.getElementById('tempChart'), {
+        type: 'line',
+        data: { datasets: [{ label: 'Температура', borderColor: '#ff4444', backgroundColor: 'rgba(255,68,68,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { stepSize: 0.5, callback: v => v + '°C' }}} }
+      }),
+      co2: new Chart(document.getElementById('co2Chart'), {
+        type: 'line',
+        data: { datasets: [{ label: 'CO₂', borderColor: '#44ff44', backgroundColor: 'rgba(68,255,68,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v + ' ppm' }}} }
+      }),
+      tvoc: new Chart(document.getElementById('tvocChart'), {
+        type: 'line',
+        data: { datasets: [{ label: 'TVOC', borderColor: '#4444ff', backgroundColor: 'rgba(68,68,255,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v + ' ppb' }}} }
+      }),
+      light: new Chart(document.getElementById('lightChart'), {
+        type: 'line',
+        data: { datasets: [{ label: 'Освітленість', borderColor: '#ffdd44', backgroundColor: 'rgba(255,221,68,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
+        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { title: { display: true, text: '0–4095', color: '#ccc' }}} }
+      })
+    };
 
-    // CO₂
-    const co2Chart = new Chart(document.getElementById('co2Chart'), {
-      type: 'line', data: { datasets: [{ label: 'CO₂', borderColor: '#44ff44', backgroundColor: 'rgba(68,255,68,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v + ' ppm' }}} }
-    });
-
-    // TVOC
-    const tvocChart = new Chart(document.getElementById('tvocChart'), {
-      type: 'line', data: { datasets: [{ label: 'TVOC', borderColor: '#4444ff', backgroundColor: 'rgba(68,68,255,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v + ' ppb' }}} }
-    });
-
-    // Освітленість
-    const lightChart = new Chart(document.getElementById('lightChart'), {
-      type: 'line', data: { datasets: [{ label: 'Освітленість', borderColor: '#ffdd44', backgroundColor: 'rgba(255,221,68,0.2)', data: [], tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-      options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v }}}, title: { display: true, text: 'Освітленість (0–4095)', color: '#ccc' } }
-    });
-
-    function update() {
-      fetch(API)
-        .then(r => r.json())
-        .then(data => {
-          if (!data || data.length === 0) return;
-
-          const points = data.map(d => ({
-            x: new Date(d.timestamp),
-            temp: parseFloat(d.temp.toFixed(1)),
-            co2: d.co2,
-            tvoc: d.tvoc,
-            light: d.light
-          }));
-
-          tempChart.data.datasets[0].data = points.map(p => ({x: p.x, y: p.temp}));
-          co2Chart.data.datasets[0].data  = points.map(p => ({x: p.x, y: p.co2}));
-          tvocChart.data.datasets[0].data = points.map(p => ({x: p.x, y: p.tvoc}));
-          lightChart.data.datasets[0].data = points.map(p => ({x: p.x, y: p.light}));
-
-          tempChart.update('quiet');
-          co2Chart.update('quiet');
-          tvocChart.update('quiet');
-          lightChart.update('quiet');
-
-          const last = data[data.length - 1];
-          document.getElementById('temp').textContent   = parseFloat(last.temp.toFixed(1)) + '°C';
-          document.getElementById('co2').textContent    = last.co2 + ' ppm';
-          document.getElementById('tvoc').textContent   = last.tvoc + ' ppb';
-          document.getElementById('light').textContent  = last.light + ' lux';
-        })
-        .catch(err => console.error("Помилка:", err));
+    // === Вибір режиму ===
+    function setMode(mode) {
+      currentMode = mode;
+      localStorage.setItem('viewMode', mode);
+      document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + mode).classList.add('active');
+      update();
     }
 
+    // === Отримання даних ===
+    async function fetchData() {
+      let url = "";
+      if (currentMode === 'today') url = `${BASE_URL}/api/today`;
+      else if (currentMode === 'yesterday') url = `${BASE_URL}/api/yesterday`;
+      else url = `${BASE_URL}/api/data`;  // обидва дні
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Не вдалося отримати дані");
+      return await res.json();
+    }
+
+    // === Оновлення графіків ===
+    async function update() {
+      try {
+        const data = await fetchData();
+        if (!data || data.length === 0) return;
+
+        const points = data.map(d => ({
+          x: new Date(d.timestamp),
+          temp: parseFloat(d.temp.toFixed(1)),
+          co2: d.co2,
+          tvoc: d.tvoc,
+          light: d.light
+        }));
+
+        // Оновлюємо всі графіки
+        Object.keys(charts).forEach(key => {
+          charts[key].data.datasets[0].data = points.map(p => ({ x: p.x, y: p[key] }));
+          charts[key].update('quiet');
+        });
+
+        // Поточні значення (завжди останнє)
+        const last = data[data.length - 1];
+        document.getElementById('temp').textContent = last.temp.toFixed(1) + '°C';
+        document.getElementById('co2').textContent = last.co2 + ' ppm';
+        document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
+        document.getElementById('light').textContent = last.light + ' lux';
+
+      } catch (err) {
+        console.error("Помилка:", err);
+      }
+    }
+
+    // === Запуск ===
+    setMode(currentMode);  // відновлюємо останній вибір
     update();
-    setInterval(update, 20000);
+    setInterval(update, 20000);  // кожні 20 секунд
   </script>
 </body>
 </html>
