@@ -3,39 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Повний моніторинг – Temp-m2</title>
+  <title>Моніторинг дому – Temp-m2</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
   <style>
-    body{margin:0;background:#0a0a1a;color:#fff;font-family:system-ui,sans-serif;}
+    body{margin:0;background:#0d0d1f;color:#fff;font-family:system-ui,sans-serif;}
     header{text-align:center;padding:30px;background:#1a1a2e;}
-    h1{font-size:2.8em;margin:0;}
-    .container{max-width:1300px;margin:0 auto;padding:20px;}
-    .controls{text-align:center;margin:20px 0;}
+    h1{font-size:2.5em;margin:0;}
+    .container{max-width:900px;margin:0 auto;padding:15px;}
+    .controls{text-align:center;margin:25px 0;}
     .btn-group button{
-      padding:12px 24px;margin:5px;font-size:1.1em;border:none;border-radius:12px;
+      padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;
       background:#333;color:#fff;cursor:pointer;transition:0.3s;
     }
-    .btn-group button.active{background:#ff6b6b;color:white;font-weight:bold;}
-    .btn-group button:hover{background:#555;}
-    .current{text-align:center;font-size:3.2em;margin:30px;}
-    .current span{display:inline-block;margin:8px;padding:12px 22px;background:rgba(255,255,255,0.12);border-radius:15px;min-width:150px;}
-    .charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-    @media(max-width:1000px){.charts{grid-template-columns:1fr;}}
-    canvas{background:#fff;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,0.7);height:300px;}
-    footer{text-align:center;padding:25px;opacity:0.7;font-size:0.9em;}
+    .btn-group button.active{background:#ff4757;color:white;font-weight:bold;}
+    .current{text-align:center;margin:30px 0;font-size:2.8em;}
+    .current span{display:inline-block;margin:8px;padding:12px 24px;background:rgba(255,255,255,0.1);border-radius:15px;min-width:140px;}
+    canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin:25px 0;height:320px;}
+    .chart-title{text-align:center;font-size:1.4em;margin:15px 0 5px;color:#ccc;}
+    footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
   </style>
 </head>
 <body>
-  <header><h1>Повний моніторинг довкілля</h1></header>
+  <header><h1>Моніторинг дому</h1></header>
 
   <div class="container">
     <div class="controls">
       <div class="btn-group">
-        <button onclick="setMode('today')"   id="btn-today">Сьогодні</button>
+        <button onclick="setMode('today')"    id="btn-today">Сьогодні</button>
         <button onclick="setMode('yesterday')" id="btn-yesterday">Вчора</button>
-        <button onclick="setMode('both')"    id="btn-both" class="active">Обидва дні</button>
+        <button onclick="setMode('both')"     id="btn-both" class="active">Обидва дні</button>
       </div>
     </div>
 
@@ -43,49 +41,133 @@
       <span id="temp">--°C</span>
       <span id="co2">-- ppm</span>
       <span id="tvoc">-- ppb</span>
-      <span id="light">-- lux</span>
+      <span id="light">--</span>
     </div>
 
-    <div class="charts">
-      <canvas id="tempChart"></canvas>
-      <canvas id="co2Chart"></canvas>
-      <canvas id="tvocChart"></canvas>
-      <canvas id="lightChart"></canvas>
-    </div>
+    <div class="chart-title">Температура</div>
+    <canvas id="tempChart"></canvas>
+
+    <div class="chart-title">CO₂ (вуглекислий газ)</div>
+    <canvas id="co2Chart"></canvas>
+
+    <div class="chart-title">TVOC (леткі органічні сполуки)</div>
+    <canvas id="tvocChart"></canvas>
+
+    <div class="chart-title">Освітленість</div>
+    <canvas id="lightChart"></canvas>
   </div>
 
-  <footer>Temp-m2 • температура + CO₂ + TVOC + освітленість • оновлення кожні 20 сек</footer>
+  <footer>Temp-m2 • оновлення кожні 20 секунд</footer>
 
   <script>
-    // === НАЛАШТУВАННЯ ===
-    const BASE_URL = "https://temp-stat2.onrender.com";  // ← заміни, якщо інший домен
+    const BASE_URL = "https://temp-stat2.onrender.com";  // ← твоя адреса
     let currentMode = localStorage.getItem('viewMode') || 'both';
 
-    // === Графіки ===
-    const charts = {
-      temp: new Chart(document.getElementById('tempChart'), {
-        type: 'line',
-        data: { datasets: [{ label: 'Температура', borderColor: '#ff4444', backgroundColor: 'rgba(255,68,68,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { stepSize: 0.5, callback: v => v + '°C' }}} }
-      }),
-      co2: new Chart(document.getElementById('co2Chart'), {
-        type: 'line',
-        data: { datasets: [{ label: 'CO₂', borderColor: '#44ff44', backgroundColor: 'rgba(68,255,68,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v + ' ppm' }}} }
-      }),
-      tvoc: new Chart(document.getElementById('tvocChart'), {
-        type: 'line',
-        data: { datasets: [{ label: 'TVOC', borderColor: '#4444ff', backgroundColor: 'rgba(68,68,255,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { ticks: { callback: v => v + ' ppb' }}} }
-      }),
-      light: new Chart(document.getElementById('lightChart'), {
-        type: 'line',
-        data: { datasets: [{ label: 'Освітленість', borderColor: '#ffdd44', backgroundColor: 'rgba(255,221,68,0.2)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3 }] },
-        options: { animation: false, plugins: { legend: { display: false }}, scales: { x: { type: 'time', grid: { display: false }}, y: { title: { display: true, text: '0–4095', color: '#ccc' }}} }
-      })
+    // === ЗОНИ КОМФОРТУ ===
+    const zones = {
+      temp:  { good: [18, 24],   warn: [16, 26],   bad: [-Infinity, Infinity] },
+      co2:   { good: [0, 800],   warn: [800, 1200], bad: [1200, Infinity] },
+      tvoc:  { good: [0, 250],   warn: [250, 500], bad: [500, Infinity] },
+      light: { good: [100, 2000], warn: [0, 100, 2000, 3000], bad: [-Infinity, Infinity] }
     };
 
-    // === Вибір режиму ===
+    // === Створення графіків з зонами ===
+    function createChart(id, label, color, unit, yMin, yMax) {
+      const ctx = document.getElementById(id);
+      const zone = zones[id.replace('Chart', '')];
+
+      return new Chart(ctx, {
+        type: 'line',
+        data: { datasets: [{ label, borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
+        options: {
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
+            y: {
+              min: yMin, max: yMax,
+              ticks: { callback: v => v + unit },
+              grid: { color: '#333' }
+            }
+          },
+          // === ЗЕЛЕНІ / ЖОВТІ / ЧЕРВОНІ ЗОНИ ===
+          plugins: {
+            annotation: {
+              annotations: {
+                good: {
+                  type: 'box',
+                  yMin: zone.good[0], yMax: zone.good[1],
+                  backgroundColor: 'rgba(0, 200, 0, 0.15)',
+                  borderColor: 'rgba(0, 200, 0, 0.4)',
+                  borderWidth: 1
+                },
+                warn1: zone.warn[0] !== undefined ? {
+                  type: 'box',
+                  yMin: zone.warn[0], yMax: zone.warn[1] || zone.warn[0],
+                  backgroundColor: 'rgba(255, 200, 0, 0.15)',
+                  borderColor: 'rgba(255, 200, 0, 0.4)',
+                  borderWidth: 1
+                } : null,
+                warn2: zone.warn[2] !== undefined ? {
+                  type: 'box',
+                  yMin: zone.warn[2], yMax: zone.warn[3] || zone.warn[2],
+                  backgroundColor: 'rgba(255, 200, 0, 0.15)',
+                  borderColor: 'rgba(255, 200, 0, 0.4)',
+                  borderWidth: 1
+                } : null,
+                bad1: {
+                  type: 'box',
+                  yMin: yMin, yMax: zone.good[0],
+                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                  borderColor: 'rgba(255, 0, 0, 0.3)',
+                  borderWidth: 1
+                },
+                bad2: {
+                  type: 'box',
+                  yMin: zone.good[1], yMax: yMax,
+                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                  borderColor: 'rgba(255, 0, 0, 0.3)',
+                  borderWidth: 1
+                }
+              }
+            }
+          }
+        },
+        plugins: [ChartAnnotation]
+      });
+    }
+
+    // Потрібно підключити плагін для зон
+    const ChartAnnotation = window['chartjs-plugin-annotation'] || {
+      id: 'annotation',
+      afterDatasetsDraw(chart) {
+        const {ctx, scales: {y}, chartArea} = chart;
+        const annotations = chart.options.plugins.annotation.annotations;
+        ctx.save();
+        Object.values(annotations).forEach(a => {
+          if (!a || a.display === false) return;
+          const y1 = y.getPixelForValue(a.yMin);
+          const y2 = y.getPixelForValue(a.yMax);
+          ctx.fillStyle = a.backgroundColor;
+          ctx.fillRect(chartArea.left, y1, chartArea.width, y2 - y1);
+          ctx.strokeStyle = a.borderColor;
+          ctx.lineWidth = a.borderWidth;
+          ctx.strokeRect(chartArea.left, y1, chartArea.width, y2 - y1);
+        });
+        ctx.restore();
+      }
+    };
+    Chart.register(ChartAnnotation);
+
+    // === Створюємо графіки ===
+    const charts = {
+      temp:   createChart('tempChart',   'Температура',   '#ff4444', '°C',   10, 35),
+      co2:    createChart('co2Chart',    'CO₂',           '#44ff44', ' ppm', 0, 2000),
+      tvoc:   createChart('tvocChart',   'TVOC',          '#4444ff', ' ppb', 0, 800),
+      light:  createChart('lightChart',  'Освітленість',  '#ffdd44', '',     0, 4095)
+    };
+
+    // === Перемикання режиму ===
     function setMode(mode) {
       currentMode = mode;
       localStorage.setItem('viewMode', mode);
@@ -96,52 +178,47 @@
 
     // === Отримання даних ===
     async function fetchData() {
-      let url = "";
-      if (currentMode === 'today') url = `${BASE_URL}/api/today`;
-      else if (currentMode === 'yesterday') url = `${BASE_URL}/api/yesterday`;
-      else url = `${BASE_URL}/api/data`;  // обидва дні
-
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Не вдалося отримати дані");
+      let url = currentMode === 'today' ? '/api/today' :
+                currentMode === 'yesterday' ? '/api/yesterday' : '/api/data';
+      const res = await fetch(BASE_URL + url);
+      if (!res.ok) throw new Error("Сервер не відповідає");
       return await res.json();
     }
 
-    // === Оновлення графіків ===
+    // === Оновлення ===
     async function update() {
       try {
         const data = await fetchData();
         if (!data || data.length === 0) return;
 
-        const points = data.map(d => ({
-          x: new Date(d.timestamp),
-          temp: parseFloat(d.temp.toFixed(1)),
-          co2: d.co2,
-          tvoc: d.tvoc,
-          light: d.light
+        const points = data.map(p => ({
+          x: new Date(p.timestamp),
+          temp: parseFloat(p.temp.toFixed(1)),
+          co2: p.co2,
+          tvoc: p.tvoc,
+          light: p.light
         }));
 
-        // Оновлюємо всі графіки
-        Object.keys(charts).forEach(key => {
-          charts[key].data.datasets[0].data = points.map(p => ({ x: p.x, y: p[key] }));
-          charts[key].update('quiet');
+        // Оновлюємо графіки
+        Object.entries(charts).forEach(([key, chart]) => {
+          chart.data.datasets[0].data = points.map(p => ({ x: p.x, y: p[key] }));
+          chart.update('quiet');
         });
 
-        // Поточні значення (завжди останнє)
-        const last = data[data.length - 1];
-        document.getElementById('temp').textContent = last.temp.toFixed(1) + '°C';
+        // Поточні значення
+        const last = points[points.length - 1];
+        document.getElementById('temp').textContent = last.temp + '°C';
         document.getElementById('co2').textContent = last.co2 + ' ppm';
         document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
-        document.getElementById('light').textContent = last.light + ' lux';
+        document.getElementById('light').textContent = last.light;
 
-      } catch (err) {
-        console.error("Помилка:", err);
-      }
+      } catch (e) { console.error(e); }
     }
 
-    // === Запуск ===
-    setMode(currentMode);  // відновлюємо останній вибір
+    // === Старт ===
+    setMode(currentMode);
     update();
-    setInterval(update, 20000);  // кожні 20 секунд
+    setInterval(update, 20000);
   </script>
 </body>
 </html>
