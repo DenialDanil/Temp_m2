@@ -13,10 +13,7 @@
     h1{font-size:2.5em;margin:0;}
     .container{max-width:900px;margin:0 auto;padding:15px;}
     .controls{text-align:center;margin:25px 0;}
-    .btn-group button{
-      padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;
-      background:#333;color:#fff;cursor:pointer;transition:0.3s;
-    }
+    .btn-group button{padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;background:#333;color:#fff;cursor:pointer;}
     .btn-group button.active{background:#ff4757;color:white;font-weight:bold;}
     .current{text-align:center;margin:30px 0;font-size:2.8em;}
     .current span{display:inline-block;margin:8px;padding:12px 24px;background:rgba(255,255,255,0.1);border-radius:15px;min-width:140px;}
@@ -31,9 +28,9 @@
   <div class="container">
     <div class="controls">
       <div class="btn-group">
-        <button onclick="setMode('today')"    id="btn-today">Сьогодні</button>
+        <button onclick="setMode('today')"     id="btn-today">Сьогодні</button>
         <button onclick="setMode('yesterday')" id="btn-yesterday">Вчора</button>
-        <button onclick="setMode('both')"     id="btn-both" class="active">Обидва дні</button>
+        <button onclick="setMode('both')"      id="btn-both" class="active">Обидва дні</button>
       </div>
     </div>
 
@@ -60,114 +57,73 @@
   <footer>Temp-m2 • оновлення кожні 20 секунд</footer>
 
   <script>
-    const BASE_URL = "https://temp-stat2.onrender.com";  // ← твоя адреса
+    const BASE_URL = "https://temp-stat2.onrender.com";   // ← твоя адреса
+
     let currentMode = localStorage.getItem('viewMode') || 'both';
 
-    // === ЗОНИ КОМФОРТУ ===
+    // === ЗОНИ ===
     const zones = {
-      temp:  { good: [18, 24],   warn: [16, 26],   bad: [-Infinity, Infinity] },
-      co2:   { good: [0, 800],   warn: [800, 1200], bad: [1200, Infinity] },
-      tvoc:  { good: [0, 250],   warn: [250, 500], bad: [500, Infinity] },
-      light: { good: [100, 2000], warn: [0, 100, 2000, 3000], bad: [-Infinity, Infinity] }
+      temp:  { good: [18, 24],   warn: [16, 26] },
+      co2:   { good: [0, 800],   warn: [800, 1200] },
+      tvoc:  { good: [0, 250],   warn: [250, 500] },
+      light: { good: [100, 2000], warn: [0, 100, 2000, 3000] }
     };
 
     // === Створення графіків з зонами ===
-    function createChart(id, label, color, unit, yMin, yMax) {
-      const ctx = document.getElementById(id);
-      const zone = zones[id.replace('Chart', '')];
-
-      return new Chart(ctx, {
+    function createChart(id, color, unit, min, max) {
+      const zone = zones[id.replace('Chart', '')] || {};
+      return new Chart(document.getElementById(id), {
         type: 'line',
-        data: { datasets: [{ label, borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
+        data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
         options: {
           animation: false,
           plugins: { legend: { display: false } },
           scales: {
             x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
-            y: {
-              min: yMin, max: yMax,
-              ticks: { callback: v => v + unit },
-              grid: { color: '#333' }
-            }
+            y: { min, max, ticks: { callback: v => v + unit }, grid: { color: '#333' } }
           },
-          // === ЗЕЛЕНІ / ЖОВТІ / ЧЕРВОНІ ЗОНИ ===
           plugins: {
             annotation: {
               annotations: {
-                good: {
-                  type: 'box',
-                  yMin: zone.good[0], yMax: zone.good[1],
-                  backgroundColor: 'rgba(0, 200, 0, 0.15)',
-                  borderColor: 'rgba(0, 200, 0, 0.4)',
-                  borderWidth: 1
-                },
-                warn1: zone.warn[0] !== undefined ? {
-                  type: 'box',
-                  yMin: zone.warn[0], yMax: zone.warn[1] || zone.warn[0],
-                  backgroundColor: 'rgba(255, 200, 0, 0.15)',
-                  borderColor: 'rgba(255, 200, 0, 0.4)',
-                  borderWidth: 1
-                } : null,
-                warn2: zone.warn[2] !== undefined ? {
-                  type: 'box',
-                  yMin: zone.warn[2], yMax: zone.warn[3] || zone.warn[2],
-                  backgroundColor: 'rgba(255, 200, 0, 0.15)',
-                  borderColor: 'rgba(255, 200, 0, 0.4)',
-                  borderWidth: 1
-                } : null,
-                bad1: {
-                  type: 'box',
-                  yMin: yMin, yMax: zone.good[0],
-                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
-                  borderColor: 'rgba(255, 0, 0, 0.3)',
-                  borderWidth: 1
-                },
-                bad2: {
-                  type: 'box',
-                  yMin: zone.good[1], yMax: yMax,
-                  backgroundColor: 'rgba(255, 0, 0, 0.1)',
-                  borderColor: 'rgba(255, 0, 0, 0.3)',
-                  borderWidth: 1
-                }
+                good:  { type: 'box', yMin: zone.good?.[0] ?? min,  yMax: zone.good?.[1] ?? max,  backgroundColor: 'rgba(0,255,0,0.15)', borderWidth: 0 },
+                warn1: zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255,200,0,0.15)', borderWidth: 0 } : {},
+                warn2: zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255,200,0,0.15)', borderWidth: 0 } : {},
+                bad1:  { type: 'box', yMin: min, yMax: zone.good?.[0] ?? min, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 },
+                bad2:  { type: 'box', yMin: zone.good?.[1] ?? max, yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 }
               }
             }
           }
         },
-        plugins: [ChartAnnotation]
+        plugins: [chartjsPluginAnnotation]
       });
     }
 
-    // Потрібно підключити плагін для зон
-    const ChartAnnotation = window['chartjs-plugin-annotation'] || {
+    // Плагін для зон (вбудований у Chart.js 4+)
+    const chartjsPluginAnnotation = window['chartjs-plugin-annotation'] || {
       id: 'annotation',
       afterDatasetsDraw(chart) {
-        const {ctx, scales: {y}, chartArea} = chart;
-        const annotations = chart.options.plugins.annotation.annotations;
+        const {ctx, chartArea, scales: {y}} = chart;
+        const ann = chart.options.plugins.annotation?.annotations || {};
         ctx.save();
-        Object.values(annotations).forEach(a => {
-          if (!a || a.display === false) return;
+        Object.values(ann).forEach(a => {
+          if (!a || a.type !== 'box') return;
           const y1 = y.getPixelForValue(a.yMin);
           const y2 = y.getPixelForValue(a.yMax);
           ctx.fillStyle = a.backgroundColor;
-          ctx.fillRect(chartArea.left, y1, chartArea.width, y2 - y1);
-          ctx.strokeStyle = a.borderColor;
-          ctx.lineWidth = a.borderWidth;
-          ctx.strokeRect(chartArea.left, y1, chartArea.width, y2 - y1);
+          ctx.fillRect(chartArea.left, Math.min(y1,y2), chartArea.width, Math.abs(y2-y1));
         });
         ctx.restore();
       }
     };
-    Chart.register(ChartAnnotation);
+    Chart.register(chartjsPluginAnnotation);
 
-    // === Створюємо графіки ===
     const charts = {
-      temp:   createChart('tempChart',   'Температура',   '#ff4444', '°C',   10, 35),
-      co2:    createChart('co2Chart',    'CO₂',           '#44ff44', ' ppm', 0, 2000),
-      tvoc:   createChart('tvocChart',   'TVOC',          '#4444ff', ' ppb', 0, 800),
-      light:  createChart('lightChart',  'Освітленість',  '#ffdd44', '',     0, 4095)
+      temp:  createChart('tempChart',  '#ff4444', '°C',  10, 35),
+      co2:   createChart('co2Chart',   '#44ff44', ' ppm', 0, 2000),
+      tvoc:  createChart('tvocChart',  '#4444ff', ' ppb', 0, 800),
+      light: createChart('lightChart', '#ffdd44', '',     0, 4095)
     };
 
-    // === Перемикання режиму ===
     function setMode(mode) {
       currentMode = mode;
       localStorage.setItem('viewMode', mode);
@@ -176,16 +132,14 @@
       update();
     }
 
-    // === Отримання даних ===
     async function fetchData() {
-      let url = currentMode === 'today' ? '/api/today' :
-                currentMode === 'yesterday' ? '/api/yesterday' : '/api/data';
-      const res = await fetch(BASE_URL + url);
-      if (!res.ok) throw new Error("Сервер не відповідає");
+      let endpoint = currentMode === 'today' ? '/api/today' :
+                     currentMode === 'yesterday' ? '/api/yesterday' : '/api/data';
+      const res = await fetch(BASE_URL + endpoint + "?t=" + Date.now());
+      if (!res.ok) throw new Error("Сервер не відповів");
       return await res.json();
     }
 
-    // === Оновлення ===
     async function update() {
       try {
         const data = await fetchData();
@@ -199,23 +153,20 @@
           light: p.light
         }));
 
-        // Оновлюємо графіки
-        Object.entries(charts).forEach(([key, chart]) => {
-          chart.data.datasets[0].data = points.map(p => ({ x: p.x, y: p[key] }));
-          chart.update('quiet');
+        Object.entries(charts).forEach(([k, ch]) => {
+          ch.data.datasets[0].data = points.map(p => ({x: p.x, y: p[k]}));
+          ch.update('quiet');
         });
 
-        // Поточні значення
-        const last = points[points.length - 1];
-        document.getElementById('temp').textContent = last.temp + '°C';
-        document.getElementById('co2').textContent = last.co2 + ' ppm';
-        document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
-        document.getElementById('light').textContent = last.light;
+        const last = points[points.length-1];
+        document.getElementById('temp').textContent   = last.temp + '°C';
+        document.getElementById('co2').textContent    = last.co2 + ' ppm';
+        document.getElementById('tvoc').textContent   = last.tvoc + ' ppb';
+        document.getElementById('light').textContent  = last.light;
 
-      } catch (e) { console.error(e); }
+      } catch (e) { console.error("Помилка оновлення:", e); }
     }
 
-    // === Старт ===
     setMode(currentMode);
     update();
     setInterval(update, 20000);
