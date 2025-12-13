@@ -19,6 +19,7 @@ h1{font-size:2.5em;margin:0;}
 canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin:25px 0;height:320px;}
 .chart-title{text-align:center;font-size:1.4em;margin:15px 0 5px;color:#ccc;}
 footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
+.no-data { color: yellow; font-size: 1.5em; text-align: center; margin: 20px; }
 </style>
 </head>
 <body>
@@ -37,6 +38,7 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
       -- ppb
       -- lux
     
+    Немає даних за вибраний період
     Температура
     <canvas id="tempChart"></canvas>
     CO₂ (вуглекислий газ)
@@ -135,7 +137,16 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
     async function update() {
       try {
         const data = await fetchData();
-        if (!data || data.length === 0) return;
+        document.getElementById('no-data-message').style.display = 'none';
+
+        if (!data || data.length === 0) {
+          Object.entries(charts).forEach(([k, ch]) => {
+            ch.data.datasets[0].data = [];
+            ch.update('quiet');
+          });
+          document.getElementById('no-data-message').style.display = 'block';
+          return;
+        }
 
         const points = data.map(p => ({
           x: luxon.DateTime.fromISO(p.timestamp, {zone: 'utc'}).setZone('Europe/Kiev'),
@@ -156,7 +167,10 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
         document.getElementById('tvoc').textContent   = last.tvoc + ' ppb';
         document.getElementById('light').textContent  = last.light + ' lux';
 
-      } catch (e) { console.error("Помилка оновлення:", e); }
+      } catch (e) { 
+        console.error("Помилка оновлення:", e);
+        document.getElementById('no-data-message').style.display = 'block';
+      }
     }
 
     setMode(currentMode);
@@ -164,4 +178,4 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
     setInterval(update, 20000);
   </script>
 </body>
-</html>
+</html>25,8с
