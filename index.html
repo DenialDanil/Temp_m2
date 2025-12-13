@@ -1,54 +1,61 @@
+<!DOCTYPE html>
 <html lang="uk">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Моніторинг дому – Temp-m2</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
-<style>
-body{margin:0;background:#0d0d1f;color:#fff;font-family:system-ui,sans-serif;}
-header{text-align:center;padding:30px;background:#1a1a2e;}
-h1{font-size:2.5em;margin:0;}
-.container{max-width:900px;margin:0 auto;padding:15px;}
-.controls{text-align:center;margin:25px 0;}
-.btn-group button{padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;background:#333;color:#fff;cursor:pointer;}
-.btn-group button.active{background:#ff4757;color:white;font-weight:bold;}
-.current{text-align:center;margin:30px 0;font-size:2.8em;}
-.current span{display:inline-block;margin:8px;padding:12px 24px;background:rgba(255,255,255,0.1);border-radius:15px;min-width:140px;}
-canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin:25px 0;height:320px;}
-.chart-title{text-align:center;font-size:1.4em;margin:15px 0 5px;color:#ccc;}
-footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
-.no-data { color: yellow; font-size: 1.5em; text-align: center; margin: 20px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Моніторинг дому – Temp-m2</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
+  <style>
+    body{margin:0;background:#0d0d1f;color:#fff;font-family:system-ui,sans-serif;}
+    header{text-align:center;padding:30px;background:#1a1a2e;}
+    h1{font-size:2.5em;margin:0;}
+    .container{max-width:900px;margin:0 auto;padding:15px;}
+    .controls{text-align:center;margin:25px 0;}
+    .btn-group button{padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;background:#333;color:#fff;cursor:pointer;}
+    .btn-group button.active{background:#ff4757;color:white;font-weight:bold;}
+    .current{text-align:center;margin:30px 0;font-size:2.8em;}
+    .current span{display:inline-block;margin:8px;padding:12px 24px;background:rgba(255,255,255,0.1);border-radius:15px;min-width:140px;}
+    canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin:25px 0;height:320px;}
+    .chart-title{text-align:center;font-size:1.4em;margin:15px 0 5px;color:#ccc;}
+    footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
+  </style>
 </head>
 <body>
-<header><h1>Моніторинг дому</h1></header>
-  
-    
-      
-        <button onclick="setMode(&#x27;today&#x27;)" id="btn-today">Сьогодні</button>
-        <button onclick="setMode(&#x27;yesterday&#x27;)" id="btn-yesterday">Вчора</button>
-        <button onclick="setMode(&#x27;both&#x27;)" id="btn-both" class="active">Обидва дні</button>
-      
-    
-    
-      --°C
-      -- ppm
-      -- ppb
-      -- lux
-    
-    Немає даних за вибраний період
-    Температура
+  <header><h1>Моніторинг дому</h1></header>
+
+  <div class="container">
+    <div class="controls">
+      <div class="btn-group">
+        <button onclick="setMode('today')"     id="btn-today">Сьогодні</button>
+        <button onclick="setMode('yesterday')" id="btn-yesterday">Вчора</button>
+        <button onclick="setMode('both')"      id="btn-both" class="active">Обидва дні</button>
+      </div>
+    </div>
+
+    <div class="current">
+      <span id="temp">--°C</span>
+      <span id="co2">-- ppm</span>
+      <span id="tvoc">-- ppb</span>
+      <span id="light">--</span>
+    </div>
+
+    <div class="chart-title">Температура</div>
     <canvas id="tempChart"></canvas>
-    CO₂ (вуглекислий газ)
+
+    <div class="chart-title">CO₂ (вуглекислий газ)</div>
     <canvas id="co2Chart"></canvas>
-    TVOC (леткі органічні сполуки)
+
+    <div class="chart-title">TVOC (леткі органічні сполуки)</div>
     <canvas id="tvocChart"></canvas>
-    Освітленість
+
+    <div class="chart-title">Освітленість</div>
     <canvas id="lightChart"></canvas>
-  
-  Temp-m2 • оновлення кожні 20 секунд
+  </div>
+
+  <footer>Temp-m2 • оновлення кожні 20 секунд</footer>
+
   <script>
     const BASE_URL = "https://temp-stat2.onrender.com";   // ← твоя адреса
 
@@ -59,21 +66,12 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
       temp:  { good: [18, 24],   warn: [16, 26] },
       co2:   { good: [0, 800],   warn: [800, 1200] },
       tvoc:  { good: [0, 250],   warn: [250, 500] },
-      light: {}  // немає зон для освітленості
+      light: { good: [100, 2000], warn: [0, 100, 2000, 3000] }
     };
 
     // === Створення графіків з зонами ===
     function createChart(id, color, unit, min, max) {
       const zone = zones[id.replace('Chart', '')] || {};
-      const annotations = {};
-      if (zone.good) {
-        annotations.good = { type: 'box', yMin: zone.good[0], yMax: zone.good[1], backgroundColor: 'rgba(0,255,0,0.15)', borderWidth: 0 };
-        annotations.warn1 = zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255,200,0,0.15)', borderWidth: 0 } : {};
-        annotations.warn2 = zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255,200,0,0.15)', borderWidth: 0 } : {};
-        annotations.bad1 = { type: 'box', yMin: min, yMax: zone.good[0], backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
-        annotations.bad2 = { type: 'box', yMin: zone.good[1], yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
-      }  // для light — порожньо
-
       return new Chart(document.getElementById(id), {
         type: 'line',
         data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
@@ -81,19 +79,27 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
           animation: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm', displayFormats: { hour: 'HH:mm' } } },
+            x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
             y: { min, max, ticks: { callback: v => v + unit }, grid: { color: '#333' } }
           },
           plugins: {
-            annotation: { annotations }
+            annotation: {
+              annotations: {
+                good:  { type: 'box', yMin: zone.good?.[0] ?? min,  yMax: zone.good?.[1] ?? max,  backgroundColor: 'rgba(0,255,0,0.15)', borderWidth: 0 },
+                warn1: zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255,200,0,0.15)', borderWidth: 0 } : {},
+                warn2: zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255,200,0,0.15)', borderWidth: 0 } : {},
+                bad1:  { type: 'box', yMin: min, yMax: zone.good?.[0] ?? min, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 },
+                bad2:  { type: 'box', yMin: zone.good?.[1] ?? max, yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 }
+              }
+            }
           }
         },
         plugins: [chartjsPluginAnnotation]
       });
     }
 
-    // Плагін для зон
-    const chartjsPluginAnnotation = {
+    // Плагін для зон (вбудований у Chart.js 4+)
+    const chartjsPluginAnnotation = window['chartjs-plugin-annotation'] || {
       id: 'annotation',
       afterDatasetsDraw(chart) {
         const {ctx, chartArea, scales: {y}} = chart;
@@ -115,7 +121,7 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
       temp:  createChart('tempChart',  '#ff4444', '°C',  10, 35),
       co2:   createChart('co2Chart',   '#44ff44', ' ppm', 0, 2000),
       tvoc:  createChart('tvocChart',  '#4444ff', ' ppb', 0, 800),
-      light: createChart('lightChart', '#ffdd44', ' lux', 0, 4095)
+      light: createChart('lightChart', '#ffdd44', '',     0, 4095)
     };
 
     function setMode(mode) {
@@ -137,19 +143,10 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
     async function update() {
       try {
         const data = await fetchData();
-        document.getElementById('no-data-message').style.display = 'none';
-
-        if (!data || data.length === 0) {
-          Object.entries(charts).forEach(([k, ch]) => {
-            ch.data.datasets[0].data = [];
-            ch.update('quiet');
-          });
-          document.getElementById('no-data-message').style.display = 'block';
-          return;
-        }
+        if (!data || data.length === 0) return;
 
         const points = data.map(p => ({
-          x: luxon.DateTime.fromISO(p.timestamp, {zone: 'utc'}).setZone('Europe/Kiev'),
+          x: new Date(p.timestamp),
           temp: parseFloat(p.temp.toFixed(1)),
           co2: p.co2,
           tvoc: p.tvoc,
@@ -165,12 +162,9 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
         document.getElementById('temp').textContent   = last.temp + '°C';
         document.getElementById('co2').textContent    = last.co2 + ' ppm';
         document.getElementById('tvoc').textContent   = last.tvoc + ' ppb';
-        document.getElementById('light').textContent  = last.light + ' lux';
+        document.getElementById('light').textContent  = last.light;
 
-      } catch (e) { 
-        console.error("Помилка оновлення:", e);
-        document.getElementById('no-data-message').style.display = 'block';
-      }
+      } catch (e) { console.error("Помилка оновлення:", e); }
     }
 
     setMode(currentMode);
@@ -178,4 +172,4 @@ footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
     setInterval(update, 20000);
   </script>
 </body>
-</html>25,8с
+</html>
