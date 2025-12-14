@@ -78,7 +78,7 @@
         data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
         options: {
           animation: false,
-          plugins: { legend: { display: false } },
+          plugins: { legend: { display: false },title: { display: false } },
           scales: {
             x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
             y: { min, max, ticks: { callback: v => v + unit }, grid: { color: '#333' } }
