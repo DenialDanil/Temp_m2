@@ -49,19 +49,17 @@
   </div>
   <footer>Temp-m2 • оновлення кожні 20 секунд</footer>
   <script>
-    const BASE_URL = "https://web-production-1ffd.up.railway.app"; // ← ТВІЙ НОВИЙ URL НА RAILWAY
+    const BASE_URL = "https://web-production-1ffd.up.railway.app"; // ← твій Railway URL
 
     let currentMode = localStorage.getItem('viewMode') || 'both';
 
-    // === ЗОНИ ===
     const zones = {
       temp: { good: [18, 24], warn: [16, 26] },
       co2: { good: [0, 800], warn: [800, 1200] },
       tvoc: { good: [0, 250], warn: [250, 500] },
-      light: {} // немає зон для освітленості
+      light: {}
     };
 
-    // === Створення графіків з зонами ===
     function createChart(id, color, unit, min, max) {
       const zone = zones[id.replace('Chart', '')] || {};
       const annotations = {};
@@ -78,13 +76,14 @@
         data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
         options: {
           animation: false,
-          plugins: { legend: { display: false },title: { display: false } },
+          plugins: {
+            legend: { display: false },
+            title: { display: false },  // ← ВИПРАВЛЕНО: більше немає "undefined" зверху
+            annotation: { annotations }
+          },
           scales: {
             x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
             y: { min, max, ticks: { callback: v => v + unit }, grid: { color: '#333' } }
-          },
-          plugins: {
-            annotation: { annotations }
           }
         },
         plugins: [chartjsPluginAnnotation]
@@ -137,9 +136,8 @@
         const data = await fetchData();
         if (!data || data.length === 0) return;
 
-        // Без переведення часу — беремо як є з сервера
         const points = data.map(p => ({
-          x: new Date(p.timestamp),  // Просто Date з ISO-рядка
+          x: new Date(p.timestamp),
           temp: parseFloat(p.temp.toFixed(1)),
           co2: p.co2,
           tvoc: p.tvoc,
