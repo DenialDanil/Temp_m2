@@ -50,13 +50,16 @@
   <footer>Temp-m2 • оновлення кожні 20 секунд</footer>
   <script>
     const BASE_URL = "https://web-production-1ffd.up.railway.app"; // ← твій Railway URL
+
     let currentMode = localStorage.getItem('viewMode') || 'both';
+
     const zones = {
       temp: { good: [18, 24], warn: [16, 26] },
       co2: { good: [0, 800], warn: [800, 1200] },
       tvoc: { good: [0, 250], warn: [250, 500] },
       light: {}
     };
+
     function createChart(id, color, unit, min, max) {
       const zone = zones[id.replace('Chart', '')] || {};
       const annotations = {};
@@ -67,14 +70,15 @@
         annotations.bad1 = { type: 'box', yMin: min, yMax: zone.good[0], backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
         annotations.bad2 = { type: 'box', yMin: zone.good[1], yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
       }
+
       return new Chart(document.getElementById(id), {
         type: 'line',
-        data: { datasets: [{ borderColor: color, backgroundColor: color+'44', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
+        data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
         options: {
           animation: false,
           plugins: {
             legend: { display: false },
-            title: { display: false },
+            title: { display: false },  // ← ВИПРАВЛЕНО: більше немає "undefined" зверху
             annotation: { annotations }
           },
           scales: {
@@ -85,6 +89,7 @@
         plugins: [chartjsPluginAnnotation]
       });
     }
+
     const chartjsPluginAnnotation = {
       id: 'annotation',
       afterDatasetsDraw(chart) {
@@ -102,12 +107,14 @@
       }
     };
     Chart.register(chartjsPluginAnnotation);
+
     const charts = {
       temp: createChart('tempChart', '#ff4444', '°C', 10, 35),
       co2: createChart('co2Chart', '#44ff44', ' ppm', 0, 2000),
       tvoc: createChart('tvocChart', '#4444ff', ' ppb', 0, 800),
-      light: createChart('lightChart', '#ffff00', ' lux', 0, 4095)  // ← ЗМІНЕНО: жовтий колір
+      light: createChart('lightChart', '#ffdd44', ' lux', 0, 4095)
     };
+
     function setMode(mode) {
       currentMode = mode;
       localStorage.setItem('viewMode', mode);
@@ -115,6 +122,7 @@
       document.getElementById('btn-' + mode).classList.add('active');
       update();
     }
+
     async function fetchData() {
       let endpoint = currentMode === 'today' ? '/api/today' :
                      currentMode === 'yesterday' ? '/api/yesterday' : '/api/data';
@@ -122,10 +130,12 @@
       if (!res.ok) throw new Error("Сервер не відповів");
       return await res.json();
     }
+
     async function update() {
       try {
         const data = await fetchData();
         if (!data || data.length === 0) return;
+
         const points = data.map(p => ({
           x: new Date(p.timestamp),
           temp: parseFloat(p.temp.toFixed(1)),
@@ -133,19 +143,23 @@
           tvoc: p.tvoc,
           light: p.light
         }));
+
         Object.entries(charts).forEach(([k, ch]) => {
           ch.data.datasets[0].data = points.map(p => ({x: p.x, y: p[k]}));
           ch.update('quiet');
         });
+
         const last = points[points.length-1];
         document.getElementById('temp').textContent = last.temp + '°C';
         document.getElementById('co2').textContent = last.co2 + ' ppm';
         document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
         document.getElementById('light').textContent = last.light + ' lux';
+
       } catch (e) {
         console.error("Помилка оновлення:", e);
       }
     }
+
     setMode(currentMode);
     update();
     setInterval(update, 20000);
