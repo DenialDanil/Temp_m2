@@ -61,11 +61,11 @@
       const zone = zones[id.replace('Chart', '')] || {};
       const annotations = {};
       if (zone.good) {
-        annotations.good = { type: 'box', yMin: zone.good[0], yMax: zone.good[1], backgroundColor: 'rgba(0,255,0,0.15)', borderWidth: 0 };
-        annotations.warn1 = zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255,255,0,0.15)', borderWidth: 0 } : {};
-        annotations.warn2 = zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255,255,0,0.15)', borderWidth: 0 } : {};
-        annotations.bad1 = { type: 'box', yMin: min, yMax: zone.good[0], backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
-        annotations.bad2 = { type: 'box', yMin: zone.good[1], yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
+        annotations.good = { type: 'box', yMin: zone.good[0], yMax: zone.good[1], backgroundColor: 'rgba(0,255,0,0.25)', borderWidth: 0 };
+        annotations.warn1 = zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255,255,0,0.25)', borderWidth: 0 } : {};
+        annotations.warn2 = zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255,255,0,0.25)', borderWidth: 0 } : {};
+        annotations.bad1 = { type: 'box', yMin: min, yMax: zone.good[0], backgroundColor: 'rgba(255,0,0,0.2)', borderWidth: 0 };
+        annotations.bad2 = { type: 'box', yMin: zone.good[1], yMax: max, backgroundColor: 'rgba(255,0,0,0.2)', borderWidth: 0 };
       }
       return new Chart(document.getElementById(id), {
         type: 'line',
