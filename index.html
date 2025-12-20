@@ -1,155 +1,153 @@
-<!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Моніторинг дому – Temp-m2</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
-  <style>
-    body{margin:0;background:#0d0d1f;color:#fff;font-family:system-ui,sans-serif;}
-    header{text-align:center;padding:30px;background:#1a1a2e;}
-    h1{font-size:2.5em;margin:0;}
-    .container{max-width:900px;margin:0 auto;padding:15px;}
-    .controls{text-align:center;margin:25px 0;}
-    .btn-group button{padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;background:#333;color:#fff;cursor:pointer;}
-    .btn-group button.active{background:#ff4757;color:white;font-weight:bold;}
-    .current{text-align:center;margin:30px 0;font-size:2.8em;}
-    .current span{display:inline-block;margin:8px;padding:12px 24px;background:rgba(255,255,255,0.1);border-radius:15px;min-width:140px;}
-    canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin:25px 0;height:320px;}
-    .chart-title{text-align:center;font-size:1.4em;margin:15px 0 5px;color:#ccc;}
-    footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Моніторинг дому – Temp-m2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.5.0/build/global/luxon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
+<style>
+body{margin:0;background:#0d0d1f;color:#fff;font-family:system-ui,sans-serif;}
+header{text-align:center;padding:30px;background:#1a1a2e;}
+h1{font-size:2.5em;margin:0;}
+.container{max-width:900px;margin:0 auto;padding:15px;}
+.controls{text-align:center;margin:25px 0;}
+.btn-group button{padding:10px 20px;margin:5px;font-size:1.1em;border:none;border-radius:10px;background:#333;color:#fff;cursor:pointer;}
+.btn-group button.active{background:#ff4757;color:white;font-weight:bold;}
+.current{text-align:center;margin:30px 0;font-size:2.8em;}
+.current span{display:inline-block;margin:8px;padding:12px 24px;background:rgba(255,255,255,0.1);border-radius:15px;min-width:140px;}
+canvas{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.6);margin:25px 0;height:320px;}
+.chart-title{text-align:center;font-size:1.4em;margin:15px 0 5px;color:#ccc;}
+footer{text-align:center;padding:20px;opacity:0.7;font-size:0.9em;}
+</style>
 </head>
 <body>
-  <header><h1>Моніторинг дому</h1></header>
-  <div class="container">
-    <div class="controls">
-      <div class="btn-group">
-        <button onclick="setMode('today')" id="btn-today">Сьогодні</button>
-        <button onclick="setMode('yesterday')" id="btn-yesterday">Вчора</button>
-        <button onclick="setMode('both')" id="btn-both" class="active">Обидва дні</button>
-      </div>
-    </div>
-    <div class="current">
-      <span id="temp">--°C</span>
-      <span id="co2">-- ppm</span>
-      <span id="tvoc">-- ppb</span>
-      <span id="light">-- lux</span>
-    </div>
-    <div class="chart-title">Температура</div>
-    <canvas id="tempChart"></canvas>
-    <div class="chart-title">CO₂ (вуглекислий газ)</div>
-    <canvas id="co2Chart"></canvas>
-    <div class="chart-title">TVOC (леткі органічні сполуки)</div>
-    <canvas id="tvocChart"></canvas>
-    <div class="chart-title">Освітленість</div>
-    <canvas id="lightChart"></canvas>
-  </div>
-  <footer>Temp-m2 • оновлення кожні 20 секунд</footer>
-  <script>
-    const BASE_URL = "https://web-production-1ffd.up.railway.app"; // ← твій Railway URL
-    let currentMode = localStorage.getItem('viewMode') || 'both';
-    const zones = {
-      temp: { good: [18, 24], warn: [16, 26] },
-      co2: { good: [0, 800], warn: [800, 1200] },
-      tvoc: { good: [0, 250], warn: [250, 500] },
-      light: {}
-    };
-    function createChart(id, color, unit, min, max) {
-      const zone = zones[id.replace('Chart', '')] || {};
-      const annotations = {};
-      if (zone.good) {
-        annotations.good = { type: 'box', yMin: zone.good[0], yMax: zone.good[1], backgroundColor: 'rgba(0,255,0,0.15)', borderWidth: 0 };
-        // Зміна: оранжевий → жовтий
-        annotations.warn1 = zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255, 255, 0, 0.2)', borderWidth: 0 } : {};
-        annotations.warn2 = zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255, 255, 0, 0.2)', borderWidth: 0 } : {};
-        annotations.bad1 = { type: 'box', yMin: min, yMax: zone.good[0], backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
-        annotations.bad2 = { type: 'box', yMin: zone.good[1], yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
-      }
-      return new Chart(document.getElementById(id), {
-        type: 'line',
-        data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
-        options: {
-          animation: false,
-          plugins: {
-            legend: { display: false },
-            title: { display: false },
-            annotation: { annotations }
-          },
-          scales: {
-            x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
-            y: { min, max, ticks: { callback: v => v + unit }, grid: { color: '#333' } }
-          }
-        },
-        plugins: [chartjsPluginAnnotation]
-      });
-    }
-    const chartjsPluginAnnotation = {
-      id: 'annotation',
-      afterDatasetsDraw(chart) {
-        const {ctx, chartArea, scales: {y}} = chart;
-        const ann = chart.options.plugins.annotation?.annotations || {};
-        ctx.save();
-        Object.values(ann).forEach(a => {
-          if (!a || a.type !== 'box') return;
-          const y1 = y.getPixelForValue(a.yMin);
-          const y2 = y.getPixelForValue(a.yMax);
-          ctx.fillStyle = a.backgroundColor;
-          ctx.fillRect(chartArea.left, Math.min(y1,y2), chartArea.width, Math.abs(y2-y1));
-        });
-        ctx.restore();
-      }
-    };
-    Chart.register(chartjsPluginAnnotation);
-    const charts = {
-      temp: createChart('tempChart', '#ff4444', '°C', 10, 35),
-      co2: createChart('co2Chart', '#44ff44', ' ppm', 0, 2000),
-      tvoc: createChart('tvocChart', '#4444ff', ' ppb', 0, 800),
-      light: createChart('lightChart', '#ffdd44', ' lux', 0, 4095)
-    };
-    function setMode(mode) {
-      currentMode = mode;
-      localStorage.setItem('viewMode', mode);
-      document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
-      document.getElementById('btn-' + mode).classList.add('active');
-      update();
-    }
-    async function fetchData() {
-      let endpoint = currentMode === 'today' ? '/api/today' :
-                     currentMode === 'yesterday' ? '/api/yesterday' : '/api/data';
-      const res = await fetch(BASE_URL + endpoint + "?t=" + Date.now());
-      if (!res.ok) throw new Error("Сервер не відповів");
-      return await res.json();
-    }
-    async function update() {
-      try {
-        const data = await fetchData();
-        if (!data || data.length === 0) return;
-        const points = data.map(p => ({
-          x: new Date(p.timestamp),
-          temp: parseFloat(p.temp.toFixed(1)),
-          co2: p.co2,
-          tvoc: p.tvoc,
-          light: p.light
-        }));
-        Object.entries(charts).forEach(([k, ch]) => {
-          ch.data.datasets[0].data = points.map(p => ({x: p.x, y: p[k]}));
-          ch.update('quiet');
-        });
-        const last = points[points.length-1];
-        document.getElementById('temp').textContent = last.temp + '°C';
-        document.getElementById('co2').textContent = last.co2 + ' ppm';
-        document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
-        document.getElementById('light').textContent = last.light + ' lux';
-      } catch (e) {
-        console.error("Помилка оновлення:", e);
-      }
-    }
-    setMode(currentMode);
-    update();
-    setInterval(update, 20000);
-  </script>
+<header><h1>Моніторинг дому</h1></header>
+<div class="container">
+<div class="controls">
+<div class="btn-group">
+<button onclick="setMode('today')" id="btn-today">Сьогодні</button>
+<button onclick="setMode('yesterday')" id="btn-yesterday">Вчора</button>
+<button onclick="setMode('both')" id="btn-both" class="active">Обидва дні</button>
+</div>
+</div>
+<div class="current">
+<span id="temp">--°C</span>
+<span id="co2">-- ppm</span>
+<span id="tvoc">-- ppb</span>
+<span id="light">-- lux</span>
+</div>
+<div class="chart-title">Температура</div>
+<canvas id="tempChart"></canvas>
+<div class="chart-title">CO₂ (вуглекислий газ)</div>
+<canvas id="co2Chart"></canvas>
+<div class="chart-title">TVOC (леткі органічні сполуки)</div>
+<canvas id="tvocChart"></canvas>
+<div class="chart-title">Освітленість</div>
+<canvas id="lightChart"></canvas>
+</div>
+<footer>Temp-m2 • оновлення кожні 20 секунд</footer>
+<script>
+const BASE_URL = "https://web-production-1ffd.up.railway.app"; // ← твій Railway URL
+let currentMode = localStorage.getItem('viewMode') || 'both';
+const zones = {
+temp: { good: [18, 24], warn: [16, 26] },
+co2: { good: [0, 800], warn: [800, 1200] },
+tvoc: { good: [0, 250], warn: [250, 500] },
+light: {}
+};
+function createChart(id, color, unit, min, max) {
+const zone = zones[id.replace('Chart', '')] || {};
+const annotations = {};
+if (zone.good) {
+annotations.good = { type: 'box', yMin: zone.good[0], yMax: zone.good[1], backgroundColor: 'rgba(0,255,0,0.15)', borderWidth: 0 };
+annotations.warn1 = zone.warn?.[0] !== undefined ? { type: 'box', yMin: zone.warn[0], yMax: zone.warn[1] ?? zone.warn[0], backgroundColor: 'rgba(255,255,0,0.15)', borderWidth: 0 } : {};
+annotations.warn2 = zone.warn?.[2] !== undefined ? { type: 'box', yMin: zone.warn[2], yMax: zone.warn[3] ?? max, backgroundColor: 'rgba(255,255,0,0.15)', borderWidth: 0 } : {};
+annotations.bad1 = { type: 'box', yMin: min, yMax: zone.good[0], backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
+annotations.bad2 = { type: 'box', yMin: zone.good[1], yMax: max, backgroundColor: 'rgba(255,0,0,0.1)', borderWidth: 0 };
+}
+return new Chart(document.getElementById(id), {
+type: 'line',
+data: { datasets: [{ borderColor: color, backgroundColor: color+'33', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 3, data: [] }] },
+options: {
+animation: false,
+plugins: {
+legend: { display: false },
+title: { display: false }, // ← ВИПРАВЛЕНО: більше немає "undefined" зверху
+annotation: { annotations }
+},
+scales: {
+x: { type: 'time', grid: { display: false }, time: { tooltipFormat: 'dd MMM HH:mm' } },
+y: { min, max, ticks: { callback: v => v + unit }, grid: { color: '#333' } }
+}
+},
+plugins: [chartjsPluginAnnotation]
+});
+}
+const chartjsPluginAnnotation = {
+id: 'annotation',
+afterDatasetsDraw(chart) {
+const {ctx, chartArea, scales: {y}} = chart;
+const ann = chart.options.plugins.annotation?.annotations || {};
+ctx.save();
+Object.values(ann).forEach(a => {
+if (!a || a.type !== 'box') return;
+const y1 = y.getPixelForValue(a.yMin);
+const y2 = y.getPixelForValue(a.yMax);
+ctx.fillStyle = a.backgroundColor;
+ctx.fillRect(chartArea.left, Math.min(y1,y2), chartArea.width, Math.abs(y2-y1));
+});
+ctx.restore();
+}
+};
+Chart.register(chartjsPluginAnnotation);
+const charts = {
+temp: createChart('tempChart', '#ff4444', '°C', 10, 35),
+co2: createChart('co2Chart', '#44ff44', ' ppm', 0, 2000),
+tvoc: createChart('tvocChart', '#4444ff', ' ppb', 0, 800),
+light: createChart('lightChart', '#ffdd44', ' lux', 0, 4095)
+};
+function setMode(mode) {
+currentMode = mode;
+localStorage.setItem('viewMode', mode);
+document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+document.getElementById('btn-' + mode).classList.add('active');
+update();
+}
+async function fetchData() {
+let endpoint = currentMode === 'today' ? '/api/today' :
+currentMode === 'yesterday' ? '/api/yesterday' : '/api/data';
+const res = await fetch(BASE_URL + endpoint + "?t=" + Date.now());
+if (!res.ok) throw new Error("Сервер не відповів");
+return await res.json();
+}
+async function update() {
+try {
+const data = await fetchData();
+if (!data || data.length === 0) return;
+const points = data.map(p => ({
+x: new Date(p.timestamp),
+temp: parseFloat(p.temp.toFixed(1)),
+co2: p.co2,
+tvoc: p.tvoc,
+light: p.light
+}));
+Object.entries(charts).forEach(([k, ch]) => {
+ch.data.datasets[0].data = points.map(p => ({x: p.x, y: p[k]}));
+ch.update('quiet');
+});
+const last = points[points.length-1];
+document.getElementById('temp').textContent = last.temp + '°C';
+document.getElementById('co2').textContent = last.co2 + ' ppm';
+document.getElementById('tvoc').textContent = last.tvoc + ' ppb';
+document.getElementById('light').textContent = last.light + ' lux';
+} catch (e) {
+console.error("Помилка оновлення:", e);
+}
+}
+setMode(currentMode);
+update();
+setInterval(update, 20000);
+</script>
 </body>
 </html>
